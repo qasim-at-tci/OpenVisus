@@ -36,6 +36,8 @@ For additional information about this project contact : pascucci@acm.org
 For support : support@visus.net
 -----------------------------------------------------------------------------*/
 
+
+
 %begin %{
 
    #define __cpp_file__ __FILE__
@@ -47,6 +49,15 @@ For support : support@visus.net
     #pragma warning(disable: 4101)
     #pragma warning(disable: 4244)
   #endif
+
+  //allow automatic casting to C++ numerical type (example numpy.uint8->int)
+  //it may be dangerous and should be "experimental"
+  //see https://github.com/swig/swig/issues/888
+  //see https://stackoverflow.com/questions/26595350/extracting-unsigned-char-from-array-of-numpy-uint8?rq=1
+  //see https://git.ligo.org/lscsoft/lalsuite/-/issues/3
+  //the other option is to include the numpy.i but this has caused so many issues in the past...
+  #define SWIG_PYTHON_CAST_MODE
+
 %}
 
 %{
