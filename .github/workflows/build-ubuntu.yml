@@ -1,0 +1,123 @@
+name: build-ubuntu
+on: [push]
+jobs:
+  Build:
+    runs-on: "ubuntu-latest"
+    strategy:
+      fail-fast: false  
+      matrix:
+        python-version: [ '3.6', '3.7', '3.8', '3.9'] 
+        visus-options: ['gui slam', 'no-gui']
+    steps:
+    
+    - name: git clone OpenVisus
+      uses: actions/checkout@v2
+
+    - name: Install CPython 
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python-version }} 
+        architecture: 'x64'
+
+    - name: Install glu 
+      if: matrix.visus-gui == 'gui' 
+      shell: bash -l {0}
+      run: sudo apt-get update && sudo apt-get install libglu1-mesa-dev 1>/dev/null
+
+    - name: Compile OpenVisus
+      shell: bash -l {0}
+      run: |
+           docker run \
+             -e PYTHON_VERSION=${{ matrix.python-version }} \
+             -e VISUS_OPTIONS=${{ visus-options }} \
+             -e Qt5_DIR=/opt/qt512 \
+             -e VISUS_MODVISUS=1 \
+             -v ${PWD}:${PWD}  \
+             -w ${PWD} visus/portable-linux-binaries \
+             /bin/bash -c "./scripts/build_linux.sh"
+           sudo chown -R root:root  build
+           sudo chmod -R a+rwx      build
+
+    - name: Test OpenVisus 
+      shell: bash -l {0}
+      run: |
+           set -x
+           which python
+           cd build/Release/OpenVisus
+           export PYTHONPATH=../
+           ${pythonLocation}/python  -m OpenVisus configure  || ${pythonLocation}/python -m OpenVisus configure  # segmentation fault problem on linux
+           ${pythonLocation}/python  -m OpenVisus test
+           if [[ "${{ matrix.visus-gui }}" == "gui" ]] ; then 
+             ${pythonLocation}/python  -m OpenVisus test-gui 
+           fi
+
+    - name: Distrib to PyPi
+      shell: bash -l {0}
+      run: |
+           ${pythonLocation}/python -m pip install setuptools wheel twine --upgrade 1>/dev/null || true
+           cd build/Release/OpenVisus
+           # running setup to create the wheel
+           Version=${{ matrix.python-version }}
+           ${pythonLocation}/python setup.py -q bdist_wheel --python-tag=cp${Version:0:1}${Version:2:1} --plat-name=manylinux2010_x86_64
+           GIT_TAG=$(git describe --tags --exact-match 2>/dev/null || true)           
+           if [[ "${GIT_TAG}" != "" ]] ; then
+             echo "GIT_TAG $GIT_TAG"
+             ${pythonLocation}/python -m twine upload --username ${{ secrets.PYPI_USERNAME }} --password ${{ secrets.PYPI_PASSWORD }} --skip-existing  "dist/*.whl" 
+           fi
+             
+    - name: Distrib mod_visus 
+      if: matrix.visus-gui == 'no-gui' && matrix.python-version=='3.7' 
+      shell: bash -l {0}
+      run: |
+           set -x
+           TAG=`${pythonLocation}/python Libs/swig/setup.py print-tag`
+           echo "TAG=${TAG}" 
+           cd Docker/mod_visus
+           echo ${{ secrets.DOCKER_TOKEN }} | docker login -u=${{ secrets.DOCKER_USERNAME }} --password-stdin
+           sleep 30 # give time pypi to get the pushed file
+           docker build --tag visus/mod_visus:$TAG --tag visus/mod_visus:latest --build-arg TAG=$TAG .
+           GIT_TAG=$(git describe --tags --exact-match 2>/dev/null || true)
+           if [[ "${GIT_TAG}" != "" ]] ; then
+             echo "GIT_TAG $GIT_TAG"
+             echo "Uploading  visus/mod_visus:$TAG to Docker"
+             docker push visus/mod_visus:$TAG
+             docker push visus/mod_visus:latest
+           fi
+
+    - name: Install and confifure Miniconda 
+      uses: conda-incubator/setup-miniconda@v2
+      continue-on-error: true # if fails the cleaning process
+      with:
+        miniconda-version: 'latest'
+        python-version: ${{ matrix.python-version }}
+        activate-environment: tmp
+        auto-update-conda: false
+        channels: conda-forge,defaults
+
+    - name: Configure Miniconda 
+      shell: bash -l {0}
+      run: |
+           conda config --set always_yes yes --set changeps1 no --set anaconda_upload no   1>/dev/null
+           conda install conda                                                             1>/dev/null
+           
+    - name: Install PyQt
+      if: matrix.visus-gui == 'gui'
+      shell: bash -l {0}
+      run: conda install -c conda-forge -y pyqt=5.12
+           
+    - name: Build conda package and distrib
+      shell: bash -l {0}   
+      run: |
+           set -e  # stop or error
+           set -x  # very verbose
+           cd build/Release/OpenVisus
+           conda install --yes anaconda-client  1>/dev/null  || true
+           conda install --yes conda-build      1>/dev/null  || true
+           conda install --yes wheel            1>/dev/null  || true
+           python setup.py -q bdist_conda 1>/dev/null
+           CONDA_FILENAME=$(find ${CONDA_PREFIX} -iname "openvisus*.tar.bz2"  | head -n 1)
+           GIT_TAG=$(git describe --tags --exact-match 2>/dev/null || true)
+           if [[ "${GIT_TAG}" != ""  ]] ; then
+             export PATH=$HOME/anaconda3/bin:$PATH
+             anaconda --verbose --show-traceback  -t ${{ secrets.ANACONDA_TOKEN }}   upload "${CONDA_FILENAME}"
+           fi

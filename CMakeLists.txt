@@ -27,6 +27,9 @@ macro(DetectAndSetupCompiler)
 		else()
 			MESSAGE(STATUS "Detected GNU on unix (C++ __GNUC__)")
 		endif()
+	
+		message(STATUS "CMAKE_SYSTEM_PROCESSOR ${CMAKE_SYSTEM_PROCESSOR}")
+	
 	endif()
 
 	set(CMAKE_POSITION_INDEPENDENT_CODE ON)
@@ -159,6 +162,19 @@ if(WIN2 AND EXISTS "${CMAKE_SOURCE_DIR}/ExternalLibs/ospray_win/README.txt")
 	set(VISUS_DEFAULT_OSPRAY ON)
 endif()
 
+# OPTIONS /////////////////////////////////////////////////
+
+if ("${VISUS_OPTIONS}" MATCHES "no-gui")
+	SET(VISUS_GUI OFF CACHE BOOL "disabled" FORCE)
+elseif(${VISUS_OPTIONS}" MATCHES "gui")
+	SET(VISUS_GUI ON CACHE BOOL "enabled" FORCE)
+endif
+
+if ("${VISUS_OPTIONS}" MATCHES "slam")
+	SET(VISUS_SLAM ON CACHE BOOL "enabled" FORCE)
+endif
+
+# //////////////////////////////////////////////////////
 
 option(BUILD_SHARED_LIBS  "Build shared libraries" ON)
 option(VISUS_NET          "Enable VISUS_NET"       ON)
