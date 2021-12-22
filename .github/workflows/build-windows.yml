@@ -138,6 +138,6 @@ jobs:
              cp --no-clobber ${CONDA_PREFIX}/lib/python${{ matrix.python-version }}/distutils/command/bdist_conda* ${CONDA_PREFIX}/lib/python3.8/site-packages/setuptools/_distutils/command/ # fix problem of bdist_conda command not found
              python setup.py -q bdist_conda 1>/dev/null
              export PATH=$HOME/anaconda3/bin:$PATH
-             CONDA_FILENAME=$(find ${CONDA_PREFIX} -iname "openvisus*.tar.bz2"  | head -n 1) 
-             anaconda --verbose --show-traceback  -t ${{ secrets.ANACONDA_TOKEN }}   upload "${CONDA_FILENAME}"
+             __filename=$(find ${CONDA_PREFIX} -iname "openvisus*.tar.bz2"  | head -n 1) 
+             anaconda --verbose --show-traceback  -t ${{ secrets.ANACONDA_TOKEN }}   upload "${__filename}"
            fi
