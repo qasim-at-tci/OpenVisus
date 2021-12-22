@@ -98,18 +98,18 @@ jobs:
            set -x
            GIT_TAG=$(git describe --tags --exact-match 2>/dev/null || true)
            
-           brew install swig cmake
+           # brew install swig cmake
+           conda install -c conda-forge numpy anaconda-client conda conda-build wheel cmake swig pyqt
            
-           conda install -c conda-forge -y pyqt
            mkdir -p build
            cd build
            cmake \
               -GXcode \
-              -DQt5_DIR="${CONDA_PREFIX}/lib/cmake/Qt5" \
               -DCMAKE_OSX_SYSROOT="/tmp/MacOSX-SDKs/MacOSX10.9.sdk"  \
               -DPython_EXECUTABLE=$(which python) \
               -DVISUS_GUI=${{ matrix.specs.gui }}  \
               -DVISUS_SLAM=${{ matrix.specs.gui }}  \
+              -DQt5_DIR="${CONDA_PREFIX}/lib/cmake/Qt5" \
               ../
            cmake --build ./ --target ALL_BUILD --config Release --parallel 4 
            cmake --build ./ --target install   --config Release 

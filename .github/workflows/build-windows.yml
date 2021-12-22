@@ -110,13 +110,14 @@ jobs:
            set -x
            GIT_TAG=$(git describe --tags --exact-match 2>/dev/null || true)
            
-           conda install -c conda-forge cmake swig pyqt
+           conda install -c conda-forge numpy anaconda-client conda conda-build wheel cmake swig pyqt
              
            mkdir -p build
            cd build
            cmake \
               -G "Visual Studio 16 2019" \
-              -A "x64" -DQt5_DIR="${CONDA_PREFIX}/Library/lib/cmake/Qt5" \
+              -A "x64" \
+              -DQt5_DIR="${CONDA_PREFIX}/Library/lib/cmake/Qt5" \
               -DPython_EXECUTABLE=$(which python) \
               -DVISUS_GUI=${{ matrix.specs.gui }}  \
               -DVISUS_SLAM=${{ matrix.specs.gui }}  \

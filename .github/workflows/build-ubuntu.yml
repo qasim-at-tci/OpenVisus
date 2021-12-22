@@ -8,11 +8,11 @@ jobs:
       matrix:
         python-version: [ '3.8',] 
         specs: [
-            {key: 'cpyth-ngui-x86_64',  platform: 'x86_64' , conda: '0', gui: '0', docker-image: 'visus/portable-linux-binaries', qt5-dir: ''                      , wheel-platform-name: 'manylinux2010_x86_64'  },
-            {key: 'cpyth-ygui-x86_64',  platform: 'x86_64' , conda: '0', gui: '1', docker-image: 'visus/portable-linux-binaries', qt5-dir: '/opt/qt512'            , wheel-platform-name: 'manylinux2010_x86_64'  },
-            {key: 'conda-ygui-x86_64',  platform: 'x86_64' , conda: '1', gui: '1', docker-image: 'condaforge/mambaforge:latest' , qt5-dir: 'Library/lib/cmake/Qt5' , wheel-platform-name: ''  },
-            {key: 'cpyth-ngui-arch64',  platform: 'aarch64', conda: '0', gui: '0', docker-image: 'nsdf/manylinux2014:latest'    , qt5-dir: ''                      , wheel-platform-name: 'manylinux2014_aarch64' },
-            {key: 'conda-ngui-arch64',  platform: 'aarch64', conda: '1', gui: '0', docker-image: 'condaforge/mambaforge:latest' , qt5-dir: ''                      , wheel-platform-name: ''  }
+            {key: 'cpyth-ngui-amd64',  platform: 'linux/amd64' , conda: '0', gui: '0', docker-image: 'visus/portable-linux-binaries', qt5-dir: ''                      , wheel-platform-name: 'manylinux2010_x86_64'  },
+            {key: 'cpyth-ygui-amd64',  platform: 'linux/amd64' , conda: '0', gui: '1', docker-image: 'visus/portable-linux-binaries', qt5-dir: '/opt/qt512'            , wheel-platform-name: 'manylinux2010_x86_64'  },
+            {key: 'conda-ygui-amd64',  platform: 'linux/amd64' , conda: '1', gui: '1', docker-image: 'condaforge/mambaforge:latest' , qt5-dir: 'Library/lib/cmake/Qt5' , wheel-platform-name: ''  },
+            {key: 'cpyth-ngui-arm64',  platform: 'linux/arm64', conda: '0', gui: '0', docker-image: 'nsdf/manylinux2014:latest'    , qt5-dir: ''                       , wheel-platform-name: 'manylinux2014_aarch64' },
+            {key: 'conda-ngui-arm64',  platform: 'linux/arm64', conda: '1', gui: '0', docker-image: 'condaforge/mambaforge:latest' , qt5-dir: ''                       , wheel-platform-name: ''  }
           ]
      
     steps:
@@ -23,7 +23,7 @@ jobs:
       uses: actions/checkout@v2
 
     - name: Set up QEMU
-      if:  matrix.specs.platform=='aarch64'
+      if:  matrix.specs.platform=='linux/arm64'
       uses: docker/setup-qemu-action@master
       with:
         platforms: all
@@ -44,8 +44,8 @@ jobs:
             PYTHON_VERSION=${{ matrix.python-version }}
             VISUS_MODVISUS=0
             
-            # todo: enable also for aarch64
-            if [[ '${{ matrix.python-version }}' == '3.7' && '${{ matrix.specs.gui }}' == '0' && '${{ matrix.specs.platform }}' == 'x86_64' ]] ; then
+            # todo: enable also for arm64
+            if [[ '${{ matrix.python-version }}' == '3.7' && '${{ matrix.specs.gui }}' == '0' && '${{ matrix.specs.platform }}' == 'linux/amd64' ]] ; then
               VISUS_MODVISUS=1
             fi
 
