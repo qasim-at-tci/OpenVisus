@@ -8,7 +8,9 @@ jobs:
       matrix:
         python-version: [ '3.6', '3.7', '3.8', '3.9', '3.10']
         visus-gui: [ '0' ]
-        docker-specs: [ {platform:'aarch64',image:'nsdf/manylinux2014:latest'} ] 
+        docker-specs: [ 
+            { 'platform: 'aarch64',image: 'nsdf/manylinux2014:latest'} 
+          ] 
     steps:
     - 
       name: git clone OpenVisus
