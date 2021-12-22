@@ -6,7 +6,7 @@ jobs:
     strategy:
       fail-fast: false  
       matrix:
-        python-version: [ '3.6', '3.7', '3.8', '3.9', '3.10' ] 
+        python-version: [ '3.8',] 
         specs: [
             {key: 'cpyth-ngui-x86_64',  platform: 'x86_64' , conda: '0', gui: '0', docker-image: 'visus/portable-linux-binaries', qt5-dir: ''                      , wheel-platform-name: 'manylinux2010_x86_64'  },
             {key: 'cpyth-ygui-x86_64',  platform: 'x86_64' , conda: '0', gui: '1', docker-image: 'visus/portable-linux-binaries', qt5-dir: '/opt/qt512'            , wheel-platform-name: 'manylinux2010_x86_64'  },
@@ -44,7 +44,8 @@ jobs:
             PYTHON_VERSION=${{ matrix.python-version }}
             VISUS_MODVISUS=0
             
-            if [[ '${{ matrix.python-version }}' == '3.7' && '${{ matrix.specs.gui }}' == '0' ]] ; then
+            # todo: enable also for aarch64
+            if [[ '${{ matrix.python-version }}' == '3.7' && '${{ matrix.specs.gui }}' == '0' && '${{ matrix.specs.platform }}' == 'x86_64' ]] ; then
               VISUS_MODVISUS=1
             fi
 
@@ -104,8 +105,7 @@ jobs:
             conda_packages+=(pyqt) ; 
            fi
            mamba create --name my-python  -y -c conda-forge ${conda_packages[@]}
-           conda init bash
-           source ~/.bashrc
+           source /opt/conda/etc/profile.d/conda.sh
            conda activate my-python
            conda config --set always_yes yes --set changeps1 no --set anaconda_upload no
 
