@@ -1,5 +1,5 @@
 
-# sudo docker build --tag visus/portable-linux-binaries --file Docker/PortableLinuxBinaries.Dockerfile .
+# sudo docker build --tag visus/portable-linux-binaries --file Docker/portable-linux-binaries/Dockerfile .
 # sudo docker login 
 # sudo docker push visus/portable-linux-binaries
 #
