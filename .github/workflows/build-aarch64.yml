@@ -8,7 +8,7 @@ jobs:
       matrix:
         python-version: [ '3.6', '3.7', '3.8', '3.9', '3.10']
         specs: [ 
-            { os:'ubuntu-latest', gui: '0', slam: '0', modvisus: '0', platform: 'aarch64', docker-image: 'nsdf/manylinux2014:latest', python-plaform-name: 'manylinux2014_aarch64'} 
+            { os: 'ubuntu-latest', gui: '0', slam: '0', modvisus: '0', platform: 'aarch64', docker-image: 'nsdf/manylinux2014:latest', python-plaform-name: 'manylinux2014_aarch64' } 
           ] 
     steps:
     - name: git clone OpenVisus

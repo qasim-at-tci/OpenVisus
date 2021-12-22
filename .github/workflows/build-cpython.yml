@@ -8,12 +8,12 @@ jobs:
       matrix:
         python-version: [ '3.6', '3.7', '3.8', '3.9'] 
         specs: [
-            {os:'windows-latest',gui:'0', slam: '0', modvisus: '0', python-platform-name: 'win_amd64'},
-            {os:'windows-latest',gui:'1', slam: '1', modvisus: '0', python-platform-name: 'win_amd64'},
-            {os:'macos-latest'  ,gui:'0', slam: '0', modvisus: '0', python-platform-name: 'macosx_10_9_x86_64'},
-            {os:'macos-latest'  ,gui:'1', slam: '1', modvisus: '0', python-platform-name: 'macosx_10_9_x86_64'},
-            {os:'ubuntu-latest' ,gui:'0', slam: '0', modvisus: '1', python-platform-name: 'manylinux2010_x86_64', docker-image: 'visus/portable-linux-binaries'},
-            {os:'ubuntu-latest' ,gui:'1', slam: '1', modvisus: '0', python-platform-name: 'manylinux2010_x86_64', docker-image: 'visus/portable-linux-binaries'},
+            {os: 'windows-latest', gui: '0', slam: '0', modvisus: '0', python-platform-name: 'win_amd64'},
+            {os: 'windows-latest', gui: '1', slam: '1', modvisus: '0', python-platform-name: 'win_amd64'},
+            {os: 'macos-latest'  , gui: '0', slam: '0', modvisus: '0', python-platform-name: 'macosx_10_9_x86_64'},
+            {os: 'macos-latest'  , gui: '1', slam: '1', modvisus: '0', python-platform-name: 'macosx_10_9_x86_64'},
+            {os: 'ubuntu-latest' , gui: '0', slam: '0', modvisus: '1', python-platform-name: 'manylinux2010_x86_64', docker-image: 'visus/portable-linux-binaries'},
+            {os: 'ubuntu-latest' , gui: '1', slam: '1', modvisus: '0', python-platform-name: 'manylinux2010_x86_64', docker-image: 'visus/portable-linux-binaries'}
           ]
      
     steps:
