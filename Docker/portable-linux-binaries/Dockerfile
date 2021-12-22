@@ -1,6 +1,6 @@
-# IMAGE_NAME=visus/portable-linux-binaries_x86_64:latest
+# IMAGE_NAME=visus/portable-linux-binaries_x86_64:2.0
 # sudo docker build --tag $IMAGE_NAME --progress=plain .
-# sudo docker login 
+# sudo docker login -u scrgiorgio
 # sudo docker push $IMAGE_NAME
 
 FROM nsdf/manylinux2010_x86_64:latest

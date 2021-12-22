@@ -8,11 +8,11 @@ jobs:
       matrix:
         python-version: [ '3.8',] 
         specs: [
-            {key: 'cpyth-ngui-amd64',  platform: 'linux/amd64' , conda: '0', gui: '0', docker-image: 'visus/portable-linux-binaries', qt5-dir: ''                      , wheel-platform-name: 'manylinux2010_x86_64'  },
-            {key: 'cpyth-ygui-amd64',  platform: 'linux/amd64' , conda: '0', gui: '1', docker-image: 'visus/portable-linux-binaries', qt5-dir: '/opt/qt512'            , wheel-platform-name: 'manylinux2010_x86_64'  },
-            {key: 'conda-ygui-amd64',  platform: 'linux/amd64' , conda: '1', gui: '1', docker-image: 'condaforge/mambaforge:latest' , qt5-dir: 'Library/lib/cmake/Qt5' , wheel-platform-name: ''  },
-            {key: 'cpyth-ngui-arm64',  platform: 'linux/arm64' , conda: '0', gui: '0', docker-image: 'nsdf/manylinux2014:latest'    , qt5-dir: ''                       , wheel-platform-name: 'manylinux2014_aarch64' },
-            {key: 'conda-ngui-arm64',  platform: 'linux/arm64' , conda: '1', gui: '0', docker-image: 'condaforge/mambaforge:latest' , qt5-dir: ''                       , wheel-platform-name: ''  }
+            {key: 'cpyth-ngui-amd64',  platform: 'linux/amd64' , conda: '0', gui: '0', docker-image: 'visus/portable-linux-binaries_x86_64:2.0', qt5-dir: ''                      , wheel-platform-name: 'manylinux2010_x86_64'  },
+            {key: 'cpyth-ygui-amd64',  platform: 'linux/amd64' , conda: '0', gui: '1', docker-image: 'visus/portable-linux-binaries_x86_64:2.0', qt5-dir: '/opt/qt512'            , wheel-platform-name: 'manylinux2010_x86_64'  },
+            {key: 'conda-ygui-amd64',  platform: 'linux/amd64' , conda: '1', gui: '1', docker-image: 'condaforge/mambaforge:latest'            , qt5-dir: 'Library/lib/cmake/Qt5' , wheel-platform-name: ''  },
+            {key: 'cpyth-ngui-arm64',  platform: 'linux/arm64' , conda: '0', gui: '0', docker-image: 'nsdf/manylinux2014:latest'               , qt5-dir: ''                      , wheel-platform-name: 'manylinux2014_aarch64' },
+            {key: 'conda-ngui-arm64',  platform: 'linux/arm64' , conda: '1', gui: '0', docker-image: 'condaforge/mambaforge:latest'            , qt5-dir: ''                      , wheel-platform-name: ''  }
           ]
      
     steps:
