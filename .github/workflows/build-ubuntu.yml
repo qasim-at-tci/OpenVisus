@@ -1,0 +1,144 @@
+dname: build-cpython
+on: [push]
+jobs:
+  Build:
+    runs-on: 'ubuntu-latest'
+    strategy:
+      fail-fast: false  
+      matrix:
+        python-version: [ '3.6', '3.7', '3.8', '3.9', '3.10' ] 
+        specs: [
+            { platform: 'x86_64' , conda: '0', gui: '0', docker-image: 'visus/portable-linux-binaries', wheel-platform-name: 'manylinux2010_x86_64'  , qt5-dir: ''},
+            { platform: 'x86_64' , conda: '0', gui: '1', docker-image: 'visus/portable-linux-binaries', wheel-platform-name: 'manylinux2010_x86_64'  , qt5-dir: '/opt/qt512'},
+            { platform: 'aarch64', conda: '0', gui: '0', docker-image: 'nsdf/manylinux2014:latest'    , wheel-platform-name: 'manylinux2014_aarch64' , qt5-dir: ''},
+            
+            { platform: 'x86_64' , conda: '1', gui: '1', docker-image: 'condaforge/mambaforge:latest', qt5-dir: 'Library/lib/cmake/Qt5'},
+            { platform: 'aarch64', conda: '1', gui: '0', docker-image: 'condaforge/mambaforge:latest', qt5-dir: ''},
+          ]
+     
+    steps:
+    
+      # ////////////////////////////////////////////////////////////
+    
+    - name: git clone OpenVisus
+      uses: actions/checkout@v2
+
+    - name: Set up QEMU
+      if:  matrix.specs.platform=='aarch64'
+      uses: docker/setup-qemu-action@master
+      with:
+        platforms: all
+
+      # ////////////////////////////////////////////////////////////
+
+    - name: Compile OpenVisus on cpython
+      if:  matrix.specs.conda == '0'
+      uses: addnab/docker-run-action@v3
+      with:
+        image: ${{ matrix.specs.docker-image }}
+        shell: bash
+        options: --platform=${{ matrix.specs.platform }}  -v ${{ github.workspace }}:/home/OpenVisus -w /home/OpenVisus
+        run: |
+            set -e 
+            set -x  
+            alias python3=python${{ matrix.python-version }}
+            GIT_TAG=$(git describe --tags --exact-match 2>/dev/null || true)
+            PYTHON_VERSION=${{ matrix.python-version }}
+            VISUS_MODVISUS=0
+            
+            if [[ '${{ matrix.python-version }}' == '3.7' &&  && '${{ matrix.specs.gui }}' == '0' ]] ; then
+              VISUS_MODVISUS=1
+            fi
+
+            mkdir -p build 
+            cd build
+            cmake \
+            	-DPython_EXECUTABLE=`which python${{ matrix.python-version }}` \
+            	-DQt5_DIR=${{ matrix.specs.qt5-dir }}  \
+            	-DVISUS_GUI=${{ matrix.specs.gui }}  \
+            	-DVISUS_SLAM=${{ matrix.specs.gui }} \
+            	-DVISUS_MODVISUS=${VISUS_MODVISUS}  \
+            	../
+            make -j
+            make install
+            
+            export PYTHONPATH=$PWD/Release
+            python3 -m OpenVisus configure || true  # segmentation fault problem
+            python3 -m OpenVisus test
+            python3 -m OpenVisus test-gui
+            unset PYTHONPATH
+            
+            if [[ "${GIT_TAG}" != "" ]] ; then
+              pushd Release/OpenVisus
+              python3 -m pip install setuptools wheel twine 1>/dev/null 
+              python3 setup.py -q bdist_wheel --python-tag=cp${PYTHON_VERSION:0:1}${PYTHON_VERSION:2:1} --plat-name=${{ matrix.specs.wheel-platform-name }}
+              python3 -m twine upload --username ${{ secrets.PYPI_USERNAME }} --password ${{ secrets.PYPI_PASSWORD }} --skip-existing  "dist/*.whl" 
+              popd
+              
+              if [[ "${VISUS_MODVISUS}" == '1' ]] ; then
+                sleep 30 # give time pypi to get the pushed file
+                pushd ../Docker/mod_visus
+                echo ${{ secrets.DOCKER_TOKEN }} | docker login -u=${{ secrets.DOCKER_USERNAME }} --password-stdin
+                docker build --tag visus/mod_visus:$TAG --tag visus/mod_visus:latest --build-arg TAG=$TAG .
+                docker push visus/mod_visus:$TAG
+                docker push visus/mod_visus:latest
+                popd
+              fi
+            fi
+
+      # ////////////////////////////////////////////////////////////
+
+    - name: Compile OpenVisus on conda 
+      if:  matrix.specs.conda == '1'
+      uses: addnab/docker-run-action@v3
+      with:
+        image: ${{ matrix.specs.docker-image }}
+        shell: bash
+        options: --platform=${{ matrix.specs.platform }} -v ${{ github.workspace }}:/home/OpenVisus -w /home/OpenVisus 
+        run: |
+           set -e
+           set -x
+           GIT_TAG=$(git describe --tags --exact-match 2>/dev/null || true)
+           
+           # configure conda
+           conda_packages=(python=${{ matrix.python-version }} numpy anaconda-client conda conda-build wheel gcc_linux-64 gxx_linux-64 make cmake swig)
+           if [[ "${{ matrix.specs.gui }}" == "1" ]]; then 
+            conda_packages+=(pyqt=5.12) ; 
+           fi
+           mamba create --name my-python  -y -c conda-forge ${conda_packages[@]}
+           conda init bash
+           source ~/.bashrc
+           conda activate my-python
+           conda config --set always_yes yes --set changeps1 no --set anaconda_upload no
+
+           # compile openvisus
+           mkdir -p build
+           cd build
+           cmake \
+              -DCMAKE_PREFIX_PATH=${CONDA_PREFIX} \
+              -DCMAKE_INSTALL_PREFIX=${CONDA_PREFIX} \
+              -DPython_EXECUTABLE=`which python` \
+              -DVISUS_MODVISUS=0 \
+              -DVISUS_GUI=${{ matrix.specs.gui }} \
+              -DVISUS_SLAM=${{ matrix.specs.gui }} \
+              -DQt5_DIR="${CONDA_PREFIX}/${{ matrix.specs.qt5-dir }}" \
+               ../
+           make -j
+           make install
+           
+           # configure and test
+           conda develop ${PWD}/Release
+           python -m OpenVisus configure || python -m OpenVisus configure  # segmentation fault problem at the first try
+           python -m OpenVisus test  
+           python -m OpenVisus test-gui
+           conda develop ${PWD}/Release --uninstall
+           
+           # upload conda package
+           if [[ "${GIT_TAG}" != ""  ]] ; then
+             pushd Release/OpenVisus
+             cp --no-clobber $CONDA_PREFIX/lib/python${{ matrix.python-version }}/distutils/command/bdist_conda* $CONDA_PREFIX/lib/python${{ matrix.python-version }}/site-packages/setuptools/_distutils/command/ # fix for bdist_not found    
+             python setup.py -q bdist_conda 1>/dev/null           
+             CONDA_FILENAME=`find ${CONDA_PREFIX} -iname "openvisus*.tar.bz2"  | head -n 1`
+             ${HOME}/anaconda3/bin/anaconda --verbose --show-traceback -t ${{ secrets.ANACONDA_TOKEN }} upload "${CONDA_FILENAME}"
+             popd
+           fi
