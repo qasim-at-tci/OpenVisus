@@ -1,39 +1,23 @@
 name: build-conda
-
 on: [push]
-
 jobs:
-
   Build:
-
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ matrix.specs.os }}
     strategy:
       fail-fast: false  
       matrix:
         python-version: [ '3.6', '3.7', '3.8', '3.9'] 
-        os: ["windows-latest", "macos-latest", "ubuntu-latest"]
+        specs: [
+          {os: 'windows-latest', gui: '1', slam: '1'},
+          {os: 'macos-latest'  , gui: '1', slam: '1'},
+          {os: 'ubuntu-latest' , gui: '1', slam: '1'}
+        ]
     steps:
+    
+      # ////////////////////////////////////////////////////////////
     
     - name: git clone OpenVisus
       uses: actions/checkout@v2    
-
-    - name: git clone opsray for windows
-      if: matrix.os == 'windows-latest'
-      uses: nick-invision/retry@v1
-      with:
-        max_attempts: 3
-        timeout_minutes: 4
-        retry_wait_seconds: 5
-        command: 'rm -Rf ExternalLibs/ospray_win && git clone https://github.com/sci-visus/ospray_win.git  ExternalLibs/ospray_win'    
-    
-    - name: Install SDK 10.9 for macos 
-      if: matrix.os == 'macos-latest'
-      uses: nick-invision/retry@v1
-      with:
-        max_attempts: 3
-        timeout_minutes: 5
-        retry_wait_seconds: 5
-        command: 'cd /tmp && rm -Rf MacOSX-SDKs && git clone https://github.com/phracker/MacOSX-SDKs.git'      
 
     - name: Install and confifure Miniconda 
       uses: conda-incubator/setup-miniconda@v2
@@ -44,61 +28,139 @@ jobs:
         activate-environment: tmp
         auto-update-conda: false
         channels: conda-forge,defaults
+        
+      # ////////////////////////////////////////////////////////////
+    
+    - name: git clone opsray for windows
+      if: matrix.specs.os == 'windows-latest'
+      uses: nick-invision/retry@v1
+      with:
+        max_attempts: 3
+        timeout_minutes: 4
+        retry_wait_seconds: 5
+        command: 'rm -Rf ExternalLibs/ospray_win && git clone https://github.com/sci-visus/ospray_win.git  ExternalLibs/ospray_win'    
+        
 
     - name: Compile OpenVisus on windows
-      if: matrix.os == 'windows-latest'
+      if: matrix.specs.os == 'windows-latest'
       shell: bash -l {0}
       run: |
            set -e
            set -x
+           GIT_TAG=$(git describe --tags --exact-match 2>/dev/null || true)           
+           
            curl -L --insecure https://cfhcable.dl.sourceforge.net/project/swig/swigwin/swigwin-4.0.2/swigwin-4.0.2.zip -O  && unzip swigwin-4.0.2.zip # problems with choco
            conda install -c conda-forge cmake 
            conda install -y pyqt=5.9  # -c conda-forge -y pyqt=5.12 (they rename DLLS, like Qt5Core.dll->Qt5Core_conda.dll))
            mkdir -p build
            cd build
-           cmake -G "Visual Studio 16 2019" -A "x64" -DQt5_DIR="${CONDA_PREFIX}/Library/lib/cmake/Qt5" -DPython_EXECUTABLE=$(which python) -DSWIG_EXECUTABLE=../swigwin-4.0.2/swig.exe -DVISUS_SLAM=1 ../
+           cmake \
+              -G "Visual Studio 16 2019" \
+              -A "x64" -DQt5_DIR="${CONDA_PREFIX}/Library/lib/cmake/Qt5" \
+              -DPython_EXECUTABLE=$(which python) \
+              -DSWIG_EXECUTABLE=../swigwin-4.0.2/swig.exe \
+              -DVISUS_GUI=${{ matrix.specs.gui }}  \
+              -DVISUS_SLAM=${{ matrix.specs.slam }}  \
+              ../
+              
            cmake --build . --target ALL_BUILD --config Release --parallel 4
            cmake --build . --target install   --config Release
+           
+           conda develop $PWD/build/Release
+           python -m OpenVisus configure 
+           python -m OpenVisus test
+           python -m OpenVisus test-gui
+           conda develop $PWD/build/Release --uninstall
+           
+           if [[ "${GIT_TAG}" != ""  ]] ; then
+             cd Release/OpenVisus
+             conda config --set always_yes yes --set changeps1 no --set anaconda_upload no   1>/dev/null
+             conda install --yes conda anaconda-client conda-build wheel  1>/dev/null
+             cp --no-clobber ${CONDA_PREFIX}/lib/python${{ matrix.python-version }}/distutils/command/bdist_conda* ${CONDA_PREFIX}/lib/python3.8/site-packages/setuptools/_distutils/command/ # fix problem of bdist_conda command not found
+             python setup.py -q bdist_conda 1>/dev/null
+             export PATH=$HOME/anaconda3/bin:$PATH
+             CONDA_FILENAME=$(find ${CONDA_PREFIX} -iname "openvisus*.tar.bz2"  | head -n 1) 
+             anaconda --verbose --show-traceback  -t ${{ secrets.ANACONDA_TOKEN }}   upload "${CONDA_FILENAME}"
+           fi           
+
+      # ////////////////////////////////////////////////////////////
+
+    - name: Install SDK 10.9 for macos 
+      if: matrix.specs.os == 'macos-latest'
+      uses: nick-invision/retry@v1
+      with:
+        max_attempts: 3
+        timeout_minutes: 5
+        retry_wait_seconds: 5
+        command: 'cd /tmp && rm -Rf MacOSX-SDKs && git clone https://github.com/phracker/MacOSX-SDKs.git'      
 
     - name: Compile OpenVisus on macos
-      if: matrix.os == 'macos-latest'
+      if: matrix.specs.os == 'macos-latest'
       shell: bash -l {0}
       run: |
            set -e
            set -x
+           GIT_TAG=$(git describe --tags --exact-match 2>/dev/null || true)
+           
            brew install swig
            brew install cmake # problems with conda
            conda install -c conda-forge -y pyqt=5.12
            mkdir -p build
            cd build
-           cmake -GXcode -DQt5_DIR="${CONDA_PREFIX}/lib/cmake/Qt5" -DCMAKE_OSX_SYSROOT="/tmp/MacOSX-SDKs/MacOSX10.9.sdk"  -DPython_EXECUTABLE=$(which python) -DVISUS_SLAM=1  ../
+           cmake \
+              -GXcode \
+              -DQt5_DIR="${CONDA_PREFIX}/lib/cmake/Qt5" \
+              -DCMAKE_OSX_SYSROOT="/tmp/MacOSX-SDKs/MacOSX10.9.sdk"  \
+              -DPython_EXECUTABLE=$(which python) \
+              -DVISUS_GUI=${{ matrix.specs.gui }}  \
+              -DVISUS_SLAM=${{ matrix.specs.slam }}  \
+              ../
            cmake --build ./ --target ALL_BUILD --config Release --parallel 4 
            cmake --build ./ --target install   --config Release 
+           
+           conda develop $PWD/build/Release
+           python -m OpenVisus configure 
+           python -m OpenVisus test
+           python -m OpenVisus test-gui
+           conda develop $PWD/build/Release --uninstall
+           
+           if [[ "${GIT_TAG}" != ""  ]] ; then
+             cd Release/OpenVisus
+             conda config --set always_yes yes --set changeps1 no --set anaconda_upload no   1>/dev/null
+             conda install --yes conda anaconda-client conda-build wheel  1>/dev/null
+             cp --no-clobber ${CONDA_PREFIX}/lib/python${{ matrix.python-version }}/distutils/command/bdist_conda* ${CONDA_PREFIX}/lib/python3.8/site-packages/setuptools/_distutils/command/ # fix problem of bdist_conda command not found
+             python setup.py -q bdist_conda 1>/dev/null
+             export PATH=$HOME/anaconda3/bin:$PATH
+             CONDA_FILENAME=$(find ${CONDA_PREFIX} -iname "openvisus*.tar.bz2"  | head -n 1) 
+             anaconda --verbose --show-traceback  -t ${{ secrets.ANACONDA_TOKEN }}   upload "${CONDA_FILENAME}"
+           fi           
+
+        # ////////////////////////////////////////////////////////////
 
     - name: Compile OpenVisus on ubuntu
-      if: matrix.os == 'ubuntu-latest'
+      if: matrix.specs.os == 'ubuntu-latest'
       uses: addnab/docker-run-action@v3
       with:
         image: visus/portable-linux-binaries
         shell: bash
         options: -v ${PWD}:/home/OpenVisus -w /home/OpenVisus
         run: |
-            set -e  
-            set -x  
-            alias python3=python${{ matrix.python-version }}
+            set -e 
+            set -x
             mkdir -p build
             cd build
             cmake \
             	-DPython_EXECUTABLE=`which python${{ matrix.python-version }}` \
             	-DQt5_DIR=/opt/qt512  \
-            	-DVISUS_GUI=${{ matrix.VISUS_GUI }}  \
             	-DVISUS_MODVISUS=1 \
-            	-DVISUS_SLAM=${{ matrix.VISUS_GUI }} \
+              -DVISUS_GUI=${{ matrix.specs.gui }}   \
+              -DVISUS_SLAM=${{ matrix.specs.slam }} \
             	../
             make -j
             make install
 
-    - name: Test OpenVisus 
+    - name: Test and Distrib OpenVisus 
+      if: matrix.specs.os == 'ubuntu-latest'
       shell: bash -l {0}
       run: |
            set -e  # stop or error
@@ -109,19 +171,14 @@ jobs:
            python -m OpenVisus test-gui
            conda develop $PWD/build/Release --uninstall
            
-    - name: Distrib OpenVisus
-      shell: bash -l {0}   
-      run: |
-           set -e  
-           set -x  
-           cd build/Release/OpenVisus
-           conda config --set always_yes yes --set changeps1 no --set anaconda_upload no   1>/dev/null
-           conda install --yes conda anaconda-client conda-build wheel  1>/dev/null
-           # fix problem of bdist_conda command not found
-           cp --no-clobber ${CONDA_PREFIX}/lib/python${{ matrix.python-version }}/distutils/command/bdist_conda* ${CONDA_PREFIX}/lib/python3.8/site-packages/setuptools/_distutils/command/
-           python setup.py -q bdist_conda 1>/dev/null
            GIT_TAG=$(git describe --tags --exact-match 2>/dev/null || true)
            if [[ "${GIT_TAG}" != ""  ]] ; then
+             cd build/Release/OpenVisus
+             conda config --set always_yes yes --set changeps1 no --set anaconda_upload no   1>/dev/null
+             conda install --yes conda anaconda-client conda-build wheel  1>/dev/null
+             # fix problem of bdist_conda command not found
+             cp --no-clobber ${CONDA_PREFIX}/lib/python${{ matrix.python-version }}/distutils/command/bdist_conda* ${CONDA_PREFIX}/lib/python3.8/site-packages/setuptools/_distutils/command/
+             python setup.py -q bdist_conda 1>/dev/null
              export PATH=$HOME/anaconda3/bin:$PATH
              CONDA_FILENAME=$(find ${CONDA_PREFIX} -iname "openvisus*.tar.bz2"  | head -n 1) 
              anaconda --verbose --show-traceback  -t ${{ secrets.ANACONDA_TOKEN }}   upload "${CONDA_FILENAME}"
