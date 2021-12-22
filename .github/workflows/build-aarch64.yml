@@ -23,6 +23,7 @@ jobs:
       uses: addnab/docker-run-action@v3
       with:
         image: ${{ matrix.docker-specs.image }}
+        shell: bash
         options: >
            --platform=${{ matrix.docker-specs.platform }}
            -v ${{ github.workspace }}:/home/OpenVisus 
@@ -92,9 +93,9 @@ jobs:
         
     - name: Run docker
       uses: addnab/docker-run-action@v3
-      shell: bash
       with:
         image: ${{ matrix.docker-specs.image }}
+        shell: bash
         options: >
            --platform=${{ matrix.docker-specs.platform }}
            -v ${{ github.workspace }}:/home/OpenVisus 
