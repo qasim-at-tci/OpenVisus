@@ -143,7 +143,7 @@ jobs:
       with:
         image: visus/portable-linux-binaries
         shell: bash
-        options: -v ${PWD}:/home/OpenVisus -w /home/OpenVisus
+        options: -v ${{ github.workspace }}:/home/OpenVisus -w /home/OpenVisus
         run: |
             set -e 
             set -x

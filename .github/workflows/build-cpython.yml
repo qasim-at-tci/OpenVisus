@@ -157,7 +157,7 @@ jobs:
       with:
         image: ${{ matrix.specs.docker-image }}
         shell: bash
-        options: -v ${PWD}:/home/OpenVisus -w /home/OpenVisus
+        options: -v ${{ github.workspace }}:/home/OpenVisus -w /home/OpenVisus
         run: |
             set -e 
             set -x  

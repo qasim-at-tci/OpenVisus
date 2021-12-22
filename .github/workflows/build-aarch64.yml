@@ -24,7 +24,7 @@ jobs:
       with:
         image: ${{ matrix.specs.docker-image }}
         shell: bash
-        options: --platform=${{ matrix.specs.platform }} -v ${{ github.workspace }}:/home/OpenVisus  -w /home/OpenVisus 
+        options: -v ${{ github.workspace }}:/home/OpenVisus  -w /home/OpenVisus  --platform=${{ matrix.specs.platform }} 
         run: |
            set -e
            set -x
