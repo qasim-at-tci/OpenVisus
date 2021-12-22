@@ -1,4 +1,4 @@
-dname: build-cpython
+name: build-ubuntu
 on: [push]
 jobs:
   Build:
