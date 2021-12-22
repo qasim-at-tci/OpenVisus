@@ -126,11 +126,11 @@ jobs:
            cmake --build . --target ALL_BUILD --config Release --parallel 4
            cmake --build . --target install   --config Release
            
-           conda develop $PWD/build/Release
+           conda develop $PWD/Release
            python -m OpenVisus configure 
            python -m OpenVisus test
            python -m OpenVisus test-gui
-           conda develop $PWD/build/Release --uninstall
+           conda develop $PWD/Release --uninstall
            
            if [[ "${GIT_TAG}" != ""  ]] ; then
              cd Release/OpenVisus
