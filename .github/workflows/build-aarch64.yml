@@ -7,9 +7,8 @@ jobs:
       fail-fast: false  
       matrix:
         python-version: [ '3.6', '3.7', '3.8', '3.9', '3.10']
-        visus-gui: [ '0' ]
         docker-specs: [ 
-            { 'platform: 'aarch64',image: 'nsdf/manylinux2014:latest'} 
+            { gui: '0', platform: 'aarch64',image: 'nsdf/manylinux2014:latest'} 
           ] 
     steps:
     - 
@@ -24,18 +23,18 @@ jobs:
       name: Run docker   
       uses: addnab/docker-run-action@v3
       with:
-        image: ${{ docker-specs.image }}
+        image: ${{ matrix.docker-specs.image }}
         options: >
-           --platform=${{ docker-specs.platform }}
+           --platform=${{ matrix.docker-specs.platform }}
            -v ${{ github.workspace }}:/home/OpenVisus 
            -w /home/OpenVisus 
            -e PYTHON_VERSION=${{ matrix.python-version }} 
            -e PYPI_USERNAME=${{ secrets.PYPI_USERNAME }} 
            -e PYPI_PASSWORD=${{ secrets.PYPI_PASSWORD }} 
            -e ANACONDA_TOKEN=${{ secrets.ANACONDA_TOKEN }}
-           -e VISUS_GUI=${{ matrix.visus-gui }} 
+           -e VISUS_GUI=${{ matrix.docker-specs.gui }} 
         run: |
-           # docker run --rm --platform=${{ docker-specs.platform }} -it -v $PWD:/home/OpenVisus -w /home/OpenVisus ${{ docker-specs.image }} -e VISUS_GUI={{ matrix.visus-gui }}  bash
+           # docker run --rm --platform=${{ matrix.docker-specs.platform }} -it -v $PWD:/home/OpenVisus -w /home/OpenVisus ${{ matrix.docker-specs.image }} -e VISUS_GUI={{ matrix.docker-specs.gui }}  bash
            set -e
            set -x
 
@@ -80,8 +79,9 @@ jobs:
       fail-fast: false  
       matrix:
         python-version: [ '3.6', '3.7', '3.8', '3.9', '3.10']
-        visus-gui: [ '0', '1']
-        docker-specs: [ {platform : 'aarch64', image : 'condaforge/mambaforge:latest'} ] 
+        docker-specs: [ 
+          { gui:'0', platform : 'aarch64', image : 'condaforge/mambaforge:latest'} 
+        ] 
     steps:
     - 
       name: git clone OpenVisus
@@ -96,16 +96,16 @@ jobs:
       uses: addnab/docker-run-action@v3
       shell: bash
       with:
-        image: ${{ docker-specs.image }}
+        image: ${{ matrix.docker-specs.image }}
         options: >
-           --platform=${{ docker-specs.platform }}
+           --platform=${{ matrix.docker-specs.platform }}
            -v ${{ github.workspace }}:/home/OpenVisus 
            -w /home/OpenVisus 
            -e PYTHON_VERSION=${{ matrix.python-version }}
            -e ANACONDA_TOKEN=${{ secrets.ANACONDA_TOKEN }}
-           -e VISUS_GUI=${{ matrix.visus-gui }}
+           -e VISUS_GUI=${{ matrix.docker-specs.gui }}
         run: |
-           # docker run --rm --platform=${{ docker-specs.platform }} -it -v $PWD:/home/OpenVisus -w /home/OpenVisus -e PYTHON_VERSION=3.8 -e VISUS_GUI=0  bash
+           # docker run --rm --platform=${{ matrix.docker-specs.platform }} -it -v $PWD:/home/OpenVisus -w /home/OpenVisus -e PYTHON_VERSION=3.8 -e VISUS_GUI={{ matrix.docker-specs.gui }}  bash
            set -e
            set -x
            
