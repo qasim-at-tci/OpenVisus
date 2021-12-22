@@ -556,8 +556,9 @@ def Main(args):
 
 	# this is just to test run-time linking of shared libraries
 	if action=="test-gui":
-		from OpenVisus.VisusGuiPy import GuiModule
-		print("test-gui ok")
+		if os.path.isfile(os.path.join(this_dir,"QT_VERSION")): 
+			from OpenVisus.VisusGuiPy import GuiModule
+			print("test-gui ok")
 		sys.exit(0)
 		
 	# example -m OpenVisus test-network-speed  --nconnections 1 --nrequests 100 --url "http://atlantis.sci.utah.edu/mod_visus?from=0&to=65536&dataset=david_subsampled" 

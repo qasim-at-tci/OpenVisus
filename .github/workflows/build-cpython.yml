@@ -161,9 +161,7 @@ jobs:
            export PYTHONPATH=$PWD/build/Release
            python3  -m OpenVisus configure  || true  # segmentation fault problem on linux
            python3  -m OpenVisus test
-           if [[ "${{ matrix.VISUS_GUI }}" == "1" ]] ; then 
-             python3  -m OpenVisus test-gui 
-           fi
+           python3  -m OpenVisus test-gui 
 
     - name: Distrib to PyPi
       shell: bash -l {0}
@@ -174,7 +172,6 @@ jobs:
            python3 -m pip install setuptools wheel twine --upgrade 1>/dev/null || true
            cd build/Release/OpenVisus
            
-           # running setup to create the wheel
            Version=${{ matrix.python-version }}
            if [[  "${{ matrix.os }}" == "windows-latest" ]] ; then PLATFORM_NAME=win_amd64            ; fi
            if [[  "${{ matrix.os }}" == "macos-latest"   ]] ; then PLATFORM_NAME=macosx_10_9_x86_64   ; fi

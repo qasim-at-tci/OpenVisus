@@ -8,7 +8,7 @@ jobs:
       matrix:
         python-version: [ '3.6', '3.7', '3.8', '3.9', '3.10']
         docker-specs: [ 
-            { gui: '0', platform: 'aarch64',image: 'nsdf/manylinux2014:latest'} 
+            { gui: '0', platform: 'aarch64', image: 'nsdf/manylinux2014:latest', python-plaform-name: 'manylinux2014_aarch64'} 
           ] 
     steps:
     - name: git clone OpenVisus
@@ -24,54 +24,37 @@ jobs:
       with:
         image: ${{ matrix.docker-specs.image }}
         shell: bash
-        options: >
-           --platform=${{ matrix.docker-specs.platform }}
-           -v ${{ github.workspace }}:/home/OpenVisus 
-           -w /home/OpenVisus 
-           -e PYTHON_VERSION=${{ matrix.python-version }} 
-           -e PYPI_USERNAME=${{ secrets.PYPI_USERNAME }} 
-           -e PYPI_PASSWORD=${{ secrets.PYPI_PASSWORD }} 
-           -e ANACONDA_TOKEN=${{ secrets.ANACONDA_TOKEN }}
-           -e VISUS_GUI=${{ matrix.docker-specs.gui }} 
+        options: --platform=${{ matrix.docker-specs.platform }} -v ${{ github.workspace }}:/home/OpenVisus  -w /home/OpenVisus 
         run: |
-           # docker run --rm --platform=${{ matrix.docker-specs.platform }} -it -v $PWD:/home/OpenVisus -w /home/OpenVisus ${{ matrix.docker-specs.image }} -e VISUS_GUI={{ matrix.docker-specs.gui }}  bash
            set -e
            set -x
-
-           PLATFORM=`uname -m`
-           PYTHON_PLATFORM_NAME=manylinux2014_${PLATFORM} # TODO
-           
-           # build OpenVisus
-           alias python3=`which python${PYTHON_VERSION}`
-           
-           mkdir -p build_docker_cpython_${PLATFORM}
-           cd build_docker_cpython_${PLATFORM}
+           alias python3=`which python${{ matrix.python-version }} 
+           mkdir -p build
+           cd build
            cmake \
-            -DPython_EXECUTABLE=`which python${PYTHON_VERSION}` \
-            -DVISUS_GUI=${VISUS_GUI} \
+            -DPython_EXECUTABLE=`which python${{ matrix.python-version }} ` \
+            -DVISUS_GUI=${{ matrix.docker-specs.gui }} \
             -DVISUS_MODVISUS=0 \
             -DVISUS_SLAM=0 \
             ../
-            
            make -j
            make install
            
-           # configure  and test
            export PYTHONPATH=$PWD/Release
            python3 -m OpenVisus configure || python3 -m OpenVisus configure  # segmentation fault problem at the first try
-           python3  -m OpenVisus test 
+           python3 -m OpenVisus test 
            unset PYTHONPATH
 
-           # create pip package
-           python3 -m pip install setuptools wheel twine 
            pushd Release/OpenVisus
-           python3 setup.py -q bdist_wheel --python-tag=cp${PYTHON_VERSION:0:1}${PYTHON_VERSION:2:1} --plat-name=${PYTHON_PLATFORM_NAME}           
+           PYTHON_VERSION=${{ matrix.python-version }}
+           python3 -m pip install setuptools wheel twine 
+           python3 setup.py -q bdist_wheel --python-tag=cp${PYTHON_VERSION:0:1}${PYTHON_VERSION:2:1} --plat-name=${{ matrix.docker-specs.python-plaform-name }}
            GIT_TAG=$(git describe --tags --exact-match 2>/dev/null || true)
            if [[ "${GIT_TAG}" != "" ]] ; then
              WHEEL_FILENAME=`find dist -iname "*.whl"  | head -n 1`
-             python3 -m twine upload --username ${PYPI_USERNAME} --password ${PYPI_PASSWORD} --skip-existing "${WHEEL_FILENAME}"
-             popd
+             python3 -m twine upload --username ${{ secrets.PYPI_USERNAME }}  --password ${{ secrets.PYPI_PASSWORD }}  --skip-existing "${WHEEL_FILENAME}"
            fi
+           popd
            
   conda:
     runs-on: "ubuntu-latest"
@@ -96,64 +79,46 @@ jobs:
       with:
         image: ${{ matrix.docker-specs.image }}
         shell: bash
-        options: >
-           --platform=${{ matrix.docker-specs.platform }}
-           -v ${{ github.workspace }}:/home/OpenVisus 
-           -w /home/OpenVisus 
-           -e PYTHON_VERSION=${{ matrix.python-version }}
-           -e ANACONDA_TOKEN=${{ secrets.ANACONDA_TOKEN }}
-           -e VISUS_GUI=${{ matrix.docker-specs.gui }}
+        options: --platform=${{ matrix.docker-specs.platform }} -v ${{ github.workspace }}:/home/OpenVisus -w /home/OpenVisus 
         run: |
-           # docker run --rm --platform=${{ matrix.docker-specs.platform }} -it -v $PWD:/home/OpenVisus -w /home/OpenVisus -e PYTHON_VERSION=3.8 -e VISUS_GUI={{ matrix.docker-specs.gui }}  bash
            set -e
            set -x
-           
-           PLATFORM=`uname -m`
-           
-           conda_packages=(python=${PYTHON_VERSION} numpy anaconda-client conda conda-build wheel gcc_linux-64 gxx_linux-64 make cmake swig)
-           
-           if [[ "${VISUS_GUI}" == "1" ]]; then 
+           conda_packages=(python=${{ matrix.python-version }} numpy anaconda-client conda conda-build wheel gcc_linux-64 gxx_linux-64 make cmake swig)
+           if [[ "${{ matrix.docker-specs.gui }}" == "1" ]]; then 
             conda_packages+=(pyqt=5.12) ; 
            fi
-
-           mamba create --name my-python  -y -c conda-forge ${conda_packages[@]} 
-           
+           mamba create --name my-python  -y -c conda-forge ${conda_packages[@]}
            conda init bash
            source ~/.bashrc
            conda activate my-python
            conda config --set always_yes yes --set changeps1 no --set anaconda_upload no
 
-           # build OpenVisus
-           mkdir -p build_docker_conda_${PLATFORM}
-           cd build_docker_conda_${PLATFORM}
+           mkdir -p build
+           cd build
            cmake \
               -DPython_EXECUTABLE=`which python` \
               -DVISUS_MODVISUS=0 \
               -DVISUS_SLAM=0 \
               -DCMAKE_PREFIX_PATH=${CONDA_PREFIX} \
               -DCMAKE_INSTALL_PREFIX=${CONDA_PREFIX} \
-              -DVISUS_GUI=${VISUS_GUI} \
+              -DVISUS_GUI=${{ matrix.docker-specs.gui }} \
               -DQt5_DIR="${CONDA_PREFIX}/Library/lib/cmake/Qt5" \
                ../
-               
            make -j
            make install
            
-           # configure  and test
            conda develop ${PWD}/Release
            python -m OpenVisus configure || python -m OpenVisus configure  # segmentation fault problem at the first try
-           python -m OpenVisus test   # FAILS: ImportError: /lib64/libstdc++.so.6: version `GLIBCXX_3.4.21' not found (required by /root/miniforge3/envs/my-python/lib/python3.8/site-packages/PIL/../../.././libLerc.so)
-           if [[ "${VISUS_GUI}" == "1" ]]; then 
-             python -m OpenVisus test-gui\q
-           fi
+           python -m OpenVisus test  
+           python -m OpenVisus test-gui
            conda develop ${PWD}/Release --uninstall
-           # fix for bdist_not found           
-           cp --no-clobber $CONDA_PREFIX/lib/python${PYTHON_VERSION}/distutils/command/bdist_conda* $CONDA_PREFIX/lib/python3.8/site-packages/setuptools/_distutils/command/
+           
            pushd Release/OpenVisus
+           cp --no-clobber $CONDA_PREFIX/lib/python${{ matrix.python-version }}/distutils/command/bdist_conda* $CONDA_PREFIX/lib/python3.8/site-packages/setuptools/_distutils/command/ # fix for bdist_not found    
            python setup.py -q bdist_conda 1>/dev/null
            GIT_TAG=$(git describe --tags --exact-match 2>/dev/null || true)
            if [[ "${GIT_TAG}" != ""  ]] ; then
              CONDA_FILENAME=`find ${CONDA_PREFIX} -iname "openvisus*.tar.bz2"  | head -n 1`
-             ${HOME}/anaconda3/bin/anaconda --verbose --show-traceback -t ${ANACONDA_TOKEN} upload "${CONDA_FILENAME}"
+             ${HOME}/anaconda3/bin/anaconda --verbose --show-traceback -t ${{ secrets.ANACONDA_TOKEN }} upload "${CONDA_FILENAME}"
            fi
            popd
