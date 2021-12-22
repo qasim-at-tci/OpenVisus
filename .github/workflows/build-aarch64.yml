@@ -11,16 +11,15 @@ jobs:
             { gui: '0', platform: 'aarch64',image: 'nsdf/manylinux2014:latest'} 
           ] 
     steps:
-    - 
-      name: git clone OpenVisus
+    - name: git clone OpenVisus
       uses: actions/checkout@v2
       
-      name: Set up QEMU
+    - name: Set up QEMU
       uses: docker/setup-qemu-action@master
       with:
         platforms: all
-    - 
-      name: Run docker   
+        
+    - name: Run docker   
       uses: addnab/docker-run-action@v3
       with:
         image: ${{ matrix.docker-specs.image }}
@@ -83,16 +82,15 @@ jobs:
           { gui:'0', platform : 'aarch64', image : 'condaforge/mambaforge:latest'} 
         ] 
     steps:
-    - 
-      name: git clone OpenVisus
+    - name: git clone OpenVisus
       uses: actions/checkout@v2
-    - 
-      name: Set up QEMU
+      
+    - name: Set up QEMU
       uses: docker/setup-qemu-action@master
       with:
         platforms: all
-    - 
-      name: Run docker
+        
+    - name: Run docker
       uses: addnab/docker-run-action@v3
       shell: bash
       with:
