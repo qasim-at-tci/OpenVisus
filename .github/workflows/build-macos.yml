@@ -100,7 +100,7 @@ jobs:
            
            brew install swig cmake
            
-           conda install -c conda-forge -y pyqt=5.12
+           conda install -c conda-forge -y pyqt
            mkdir -p build
            cd build
            cmake \

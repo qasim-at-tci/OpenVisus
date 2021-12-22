@@ -110,7 +110,7 @@ jobs:
            set -x
            GIT_TAG=$(git describe --tags --exact-match 2>/dev/null || true)
            
-           conda install -c conda-forge cmake swig pyqt=5.9 # -c conda-forge -y pyqt=5.12, they rename DLLS, like Qt5Core.dll->Qt5Core_conda.dll
+           conda install -c conda-forge cmake swig pyqt
              
            mkdir -p build
            cd build
