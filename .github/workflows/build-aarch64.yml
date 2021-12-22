@@ -118,7 +118,7 @@ jobs:
 
            mamba create --name my-python  -y -c conda-forge ${conda_packages[@]} 
            
-           conda init 
+           conda init bash
            source ~/.bashrc
            conda activate my-python
            conda config --set always_yes yes --set changeps1 no --set anaconda_upload no
@@ -144,13 +144,11 @@ jobs:
            python -m OpenVisus configure || python -m OpenVisus configure  # segmentation fault problem at the first try
            python -m OpenVisus test   # FAILS: ImportError: /lib64/libstdc++.so.6: version `GLIBCXX_3.4.21' not found (required by /root/miniforge3/envs/my-python/lib/python3.8/site-packages/PIL/../../.././libLerc.so)
            if [[ "${VISUS_GUI}" == "1" ]]; then 
-             python -m OpenVisus test-gui\
+             python -m OpenVisus test-gui\q
            fi
            conda develop ${PWD}/Release --uninstall
-           
-           # conda package
-           # if cannot find bdist_conda command do this
-           # cp -f $CONDA_PREFIX/lib/python${PYTHON_VERSION}/distutils/command/bdist_conda* $CONDA_PREFIX/lib/python3.8/site-packages/setuptools/_distutils/command/
+           # fix for bdist_not found           
+           cp --no-clobber $CONDA_PREFIX/lib/python${PYTHON_VERSION}/distutils/command/bdist_conda* $CONDA_PREFIX/lib/python3.8/site-packages/setuptools/_distutils/command/
            pushd Release/OpenVisus
            python setup.py -q bdist_conda 1>/dev/null
            GIT_TAG=$(git describe --tags --exact-match 2>/dev/null || true)
