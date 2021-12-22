@@ -16,11 +16,11 @@ cmake \
 	-DQt5_DIR=${Qt5_DIR} \
 	-DVISUS_GUI=${VISUS_GUI} \
 	-DVISUS_MODVISUS=${VISUS_MODVISUS} \
-	-DVISUS_SLAM=${VISUS_SLAM} 
+	-DVISUS_SLAM=${VISUS_SLAM} \
 	../
 	
-cmake --build ./ --target all     --config Release --parallel 4
-cmake --build ./ --target install --config Release
+make -j
+make install
 
 cd Release/OpenVisus
 export PYTHONPATH=../
