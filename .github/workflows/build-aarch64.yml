@@ -1,7 +1,7 @@
 name: build-aarch64
 on: [push]
 jobs:
-  pypi:
+  cpython:
     runs-on: "ubuntu-latest"
     strategy:
       fail-fast: false  
@@ -85,6 +85,9 @@ jobs:
            set -x
 
            mamba create --name my-python  -y -c conda-forge python=${PYTHON_VERSION} numpy anaconda-client conda-build wheel gcc_linux-64 gxx_linux-64 make cmake swig
+           
+           conda init 
+           source ~/.bashrc
            conda activate my-python
 
            # build OpenVisus
