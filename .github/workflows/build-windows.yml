@@ -118,7 +118,6 @@ jobs:
               -G "Visual Studio 16 2019" \
               -A "x64" -DQt5_DIR="${CONDA_PREFIX}/Library/lib/cmake/Qt5" \
               -DPython_EXECUTABLE=$(which python) \
-              -DSWIG_EXECUTABLE=../swigwin-4.0.2/swig.exe \
               -DVISUS_GUI=${{ matrix.specs.gui }}  \
               -DVISUS_SLAM=${{ matrix.specs.gui }}  \
               ../
