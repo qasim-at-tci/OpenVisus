@@ -27,4 +27,4 @@ jobs:
             EOF
             chmod a+x ./test.sh
                     
-            docker run --platform linux/arm64 -v $PWD/test.sh:/tmp/test.sh -w /tmp --rm nsdf/manylinux2014_aarch64:latest bash test.sh
+            docker run --platform linux/arm64 -v $PWD/test.sh:/tmp/test.sh -w /tmp --rm --entrypoint "bast test.sh" nsdf/manylinux2014_aarch64:latest
