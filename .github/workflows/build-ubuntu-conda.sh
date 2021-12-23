@@ -10,7 +10,7 @@ GIT_TAG=$(git describe --tags --exact-match 2>/dev/null || true)
 # configure conda
 conda_packages=(python=${PYTHON_VERSION} numpy anaconda-client conda conda-build wheel gcc_linux-64 gxx_linux-64 make cmake swig)
 if [[ "${VISUS_GUI}" == "1" ]]; then 
-  conda_packages+=(pyqt libglu)
+  conda_packages+=(pyqt libglu mesalib)
 fi
 
 mamba create --name my-python  -y -c conda-forge ${conda_packages[@]}
