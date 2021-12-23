@@ -8,8 +8,8 @@ uname -m
 GIT_TAG=$(git describe --tags --exact-match 2>/dev/null || true)
 
 export DEBIAN_FRONTEND=noninteractive
-apt-get update
-apt-get install libglu1-mesa-dev freeglut3-dev mesa-common-dev
+apt-get update -y
+apt-get install -y libglu1-mesa-dev freeglut3-dev mesa-common-dev
 
 # configure conda
 conda_packages=(python=${PYTHON_VERSION} numpy anaconda-client conda conda-build wheel gcc_linux-64 gxx_linux-64 make cmake swig)
