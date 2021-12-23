@@ -4,7 +4,7 @@
 [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/sci-visus/OpenVisus/master?filepath=Samples%2Fjupyter)
 
  
- 
+  
 # Mission
 
 The mission of ViSUS.org is to provide support for the scientific community with Big Data, management, analysis and visualization tools.

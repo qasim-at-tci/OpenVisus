@@ -102,7 +102,7 @@ jobs:
            # configure conda
            conda_packages=(python=${{ matrix.python-version }} numpy anaconda-client conda conda-build wheel gcc_linux-64 gxx_linux-64 make cmake swig)
            if [[ "${{ matrix.specs.gui }}" == "1" ]]; then 
-            conda_packages+=(pyqt libglu) ; 
+            conda_packages+=(pyqt libglu)
            fi
            mamba create --name my-python  -y -c conda-forge ${conda_packages[@]}
            source /opt/conda/etc/profile.d/conda.sh
