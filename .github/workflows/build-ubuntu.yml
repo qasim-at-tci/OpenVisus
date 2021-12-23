@@ -2,7 +2,7 @@ name: build-ubuntu
 on: [push]
 jobs:
 
-  EXAMPLE:
+  example:
     runs-on: ubuntu-latest
     steps:
     
@@ -16,8 +16,9 @@ jobs:
       - name: Available platforms
         run: echo ${{ steps.buildx.outputs.platforms }}
     
-    - run: |
-        docker run -it --rm multiarch/ubuntu-core:arm64-wily 'bash -c "uname -a"'
+      - name: Test
+        run: |
+            docker run -it --rm multiarch/ubuntu-core:arm64-wily 'bash -c "uname -a"'
 
 
   Build:
