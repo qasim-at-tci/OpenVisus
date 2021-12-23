@@ -1,6 +1,15 @@
 name: build-ubuntu
 on: [push]
 jobs:
+
+  EXAMPLE:
+    runs-on: ubuntu-latest
+    steps:
+    - run: |
+        docker run --rm --privileged multiarch/qemu-user-static:register --reset
+        docker run -it --rm multiarch/ubuntu-core:armhf-wily 'bash -c "uname -a"'
+
+
   Build:
     runs-on: 'ubuntu-latest'
     strategy:
