@@ -1,0 +1,144 @@
+name: build-windows
+on: [push]
+jobs:
+  build:
+    runs-on: 'windows-latest'
+    strategy:
+      fail-fast: false  
+      matrix:
+        python-version: [ '3.8']
+        specs: [
+            {key: 'cpyth-ngui', type: 'cpython', gui: '0'},
+            {key: 'cpyth-ygui', type: 'cpython', gui: '1'},
+            {key: 'conda-ygui', type: 'conda', gui: '1'}
+          ]
+     
+    steps:
+
+    # //////////////////////////////////////////////////////////////////////
+    - name: git clone OpenVisus
+      uses: actions/checkout@v2
+      
+    - name: git clone opsray 
+      if:  matrix.specs.gui == '1'
+      uses: nick-invision/retry@v1
+      with:
+        max_attempts: 3
+        timeout_minutes: 4
+        retry_wait_seconds: 5
+        command: 'rm -Rf ExternalLibs/ospray_win && git clone https://github.com/sci-visus/ospray_win.git ExternalLibs/ospray_win'
+      
+      # //////////////////////////////////////////////////////////////////////
+    - name: Install CPython 
+      if:  matrix.specs.type == 'cpython'
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python-version }} 
+        architecture: 'x64'
+
+    - name: Install CMake
+      if:  matrix.specs.type == 'cpython'
+      uses: lukka/get-cmake@latest
+      
+    - name: Install Swig 
+      if:  matrix.specs.type == 'cpython'
+      shell: bash -l {0}
+      run: curl -L --insecure https://cfhcable.dl.sourceforge.net/project/swig/swigwin/swigwin-4.0.2/swigwin-4.0.2.zip -O  && unzip swigwin-4.0.2.zip # problems with choco
+
+    - name: Install Qt 
+      if: matrix.specs.type == 'cpython' && matrix.specs.gui == '1' 
+      uses: jurplel/install-qt-action@v2
+      with:
+        version: '5.12.8'
+        arch: 'win64_msvc2017_64'
+        install-deps: 'true'
+        dir: C:\
+        setup-python: 'false' 
+
+    - name: Compile on cpython
+      if:  matrix.specs.type == 'cpython'
+      shell: bash -l {0}
+      run: |
+           set -e
+           set -x
+           mkdir -p build 
+           cd build
+           cmake -G "Visual Studio 16 2019" -A "x64" \
+             -DVISUS_GUI=${{ matrix.specs.gui }} \
+             -DVISUS_SLAM=${{ matrix.specs.gui }} \
+             -DQt5_DIR="${Qt5_Dir}/lib/cmake/Qt5" \
+             -DPython_EXECUTABLE=${pythonLocation}/python.exe  \
+             -DSWIG_EXECUTABLE=../swigwin-4.0.2/swig.exe \
+             ../
+           cmake --build . --target ALL_BUILD --config Release --parallel 4
+           cmake --build . --target install   --config Release
+           
+           export PYTHONPATH=$PWD/Release
+           python3  -m OpenVisus configure
+           python3  -m OpenVisus test
+           python3  -m OpenVisus test-gui
+           unset PYTHONPATH
+           
+           python3 -m pip install setuptools wheel twine 1>/dev/null 
+           cd Release/OpenVisus
+           PYTHON_VERSION=${{ matrix.python-version }}
+           python3 setup.py -q bdist_wheel --python-tag=cp${PYTHON_VERSION:0:1}${PYTHON_VERSION:2:1} --plat-name=win_amd64
+           GIT_TAG=$(git describe --tags --exact-match 2>/dev/null || true)
+           if [[ "${GIT_TAG}" != "" ]] ; then
+             echo "GIT_TAG $GIT_TAG"
+             python3 -m twine upload --username ${{ secrets.PYPI_USERNAME }} --password ${{ secrets.PYPI_PASSWORD }} --skip-existing  "dist/*.whl" 
+           fi
+    
+    
+    # //////////////////////////////////////////////////////////////////////
+    - name: Install conda
+      if:  matrix.specs.type == 'conda'
+      uses: conda-incubator/setup-miniconda@v2
+      continue-on-error: true # if fails the cleaning process
+      with:
+        miniconda-version: 'latest'
+        python-version: ${{ matrix.python-version }}
+        activate-environment: tmp
+        auto-update-conda: false
+        channels: conda-forge,defaults
+
+    - name: Compile on conda
+      if:  matrix.specs.type == 'conda'
+      shell: bash -l {0}
+      run: |
+           set -e
+           set -x
+           GIT_TAG=$(git describe --tags --exact-match 2>/dev/null || true)
+           
+           conda install -c conda-forge numpy anaconda-client conda conda-build wheel cmake swig pyqt
+             
+           mkdir -p build
+           cd build
+           cmake \
+              -G "Visual Studio 16 2019" \
+              -A "x64" \
+              -DQt5_DIR="${CONDA_PREFIX}/Library/lib/cmake/Qt5" \
+              -DPython_EXECUTABLE=$(which python) \
+              -DVISUS_GUI=${{ matrix.specs.gui }}  \
+              -DVISUS_SLAM=${{ matrix.specs.gui }}  \
+              ../
+              
+           cmake --build . --target ALL_BUILD --config Release --parallel 4
+           cmake --build . --target install   --config Release
+           
+           conda develop $PWD/Release
+           python -m OpenVisus configure 
+           python -m OpenVisus test
+           python -m OpenVisus test-gui
+           conda develop $PWD/Release --uninstall
+           
+           if [[ "${GIT_TAG}" != ""  ]] ; then
+             cd Release/OpenVisus
+             conda config --set always_yes yes --set changeps1 no --set anaconda_upload no   1>/dev/null
+             conda install --yes conda anaconda-client conda-build wheel  1>/dev/null
+             cp --no-clobber ${CONDA_PREFIX}/lib/python${{ matrix.python-version }}/distutils/command/bdist_conda* ${CONDA_PREFIX}/lib/python3.8/site-packages/setuptools/_distutils/command/ # fix problem of bdist_conda command not found
+             python setup.py -q bdist_conda 1>/dev/null
+             export PATH=$HOME/anaconda3/bin:$PATH
+             __filename=$(find ${CONDA_PREFIX} -iname "openvisus*.tar.bz2"  | head -n 1) 
+             anaconda --verbose --show-traceback  -t ${{ secrets.ANACONDA_TOKEN }}   upload "${__filename}"
+           fi
