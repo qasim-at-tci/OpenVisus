@@ -218,8 +218,10 @@ endif()
 
 if (VISUS_PYTHON)
 	find_package(Python COMPONENTS Interpreter Development REQUIRED)
-	MESSAGE(STATUS "Python_EXECUTABLE ${Python_EXECUTABLE}")
-	MESSAGE(STATUS "Python_VERSION    ${Python_VERSION}")
+	MESSAGE(STATUS "Python_EXECUTABLE   ${Python_EXECUTABLE}")
+	MESSAGE(STATUS "Python_VERSION      ${Python_VERSION}")
+        MESSAGE(STATUS "Python_INCLUDE_DIRS ${Python_INCLUDE_DIRS}")
+        MESSAGE(STATUS "Python_LIBRARIES    ${Python_LIBRARIES}")
 endif()
 
 if (VISUS_OSPRAY)
