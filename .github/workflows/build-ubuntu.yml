@@ -18,4 +18,13 @@ jobs:
     
       - name: Test
         run: |
-            docker run --platform linux/arm64 --rm nsdf/manylinux2014_aarch64:latest "uname -a"
+        
+            cat <<EOF >test.sh
+            #!/bin/bash
+            set -e
+            set -x
+            uname -a
+            EOF
+            chmod a+x ./test.sh
+                    
+            docker run --platform linux/arm64 -v $PWD/test.sh:/tmp/test.sh -w /tmp --rm nsdf/manylinux2014_aarch64:latest bash test.sh
