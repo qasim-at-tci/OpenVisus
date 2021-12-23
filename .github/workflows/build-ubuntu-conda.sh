@@ -5,26 +5,49 @@ set -x
 
 uname -m
 
+ENV_NAME=my-python
+
+ # in case you want to install conda use this
+ function install_conda(){
+   pushd $HOME
+   curl -L https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-4.11.0-0-Linux-$(uname -m).sh -o install.sh 
+   bash install.sh -b 
+   rm -f install.sh
+   popd
+ }
+
+
 GIT_TAG=$(git describe --tags --exact-match 2>/dev/null || true)
 
-export DEBIAN_FRONTEND=noninteractive
-apt-get update -y
-apt-get install -y libglu1-mesa-dev freeglut3-dev mesa-common-dev
 
 # configure conda
 conda_packages=(python=${PYTHON_VERSION} numpy anaconda-client conda conda-build wheel gcc_linux-64 gxx_linux-64 make cmake swig)
 if [[ "${VISUS_GUI}" == "1" ]]; then 
-  conda_packages+=(pyqt libglu mesalib libglib)
+  conda_packages+=(pyqt)
+
+  export DEBIAN_FRONTEND=noninteractive
+  apt-get update -y
+  apt-get install -y libglu1-mesa-dev freeglut3-dev mesa-common-dev libgl1-mesa-dev
 fi
 
-mamba create --name my-python  -y -c conda-forge ${conda_packages[@]}
+conda create --name $ENV_NAME  -y -c conda-forge ${conda_packages[@]}
 source /opt/conda/etc/profile.d/conda.sh
-conda activate my-python
+conda activate $ENV_NAME
 conda config --set always_yes yes --set changeps1 no --set anaconda_upload no
+
+# I know if this sounds crazy, but if I don't do the following, conda/pyqt5/VisusGUi cannot find GL/gl.h since it refuses to use /usr/include
+# see https://gitlab.kitware.com/cmake/cmake/-/issues/17966
+if [[ "${VISUS_GUI}" == "1" ]]; then 
+  ln -s /usr/include/GL /opt/conda/envs/$ENV_NAME/include/GL
+  ln -s /usr/lib/x86_64-linux-gnu/libGL.so        /opt/conda/envs/$ENV_NAME/lib/libGL.so
+  ln -s /usr/lib/x86_64-linux-gnu/libGL.so.1      /opt/conda/envs/$ENV_NAME/lib/libGL.so.1 
+  ln -s /usr/lib/x86_64-linux-gnu/libGL.so.1.7.0  /opt/conda/envs/$ENV_NAME/lib/libGL.so.1.7.0
+fi
 
 # compile openvisus
 mkdir -p build
 cd build
+
 cmake \
   -DCMAKE_PREFIX_PATH=${CONDA_PREFIX} \
   -DCMAKE_INSTALL_PREFIX=${CONDA_PREFIX} \
