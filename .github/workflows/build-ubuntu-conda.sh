@@ -44,7 +44,7 @@ conda develop ${PWD}/Release --uninstall
 # upload conda package
 if [[ "${GIT_TAG}" != ""  ]] ; then
   pushd Release/OpenVisus
-  cp --no-clobber $CONDA_PREFIX/lib/python${PYTHON_VERSION}/distutils/command/bdist_conda* $CONDA_PREFIX/lib/python${PYTHON_VERSION}/site-packages/setuptools/_distutils/command/ # fix for bdist_not found    
+  cp --no-clobber $CONDA_PREFIX/lib/python${PYTHON_VERSION}/distutils/command/bdist_conda* $CONDA_PREFIX/lib/python${PYTHON_VERSION}/site-packages/setuptools/_distutils/command/ # fix for bdist_not found
   python setup.py -q bdist_conda 1>/dev/null
   __filename__=`find ${CONDA_PREFIX} -iname "openvisus*.tar.bz2"  | head -n 1`
   ${HOME}/anaconda3/bin/anaconda --verbose --show-traceback -t ${ANACONDA_TOKEN} upload "${__filename__}"
