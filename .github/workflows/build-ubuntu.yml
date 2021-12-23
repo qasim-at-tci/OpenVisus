@@ -41,20 +41,21 @@ jobs:
                 
     - name: Compile OpenVisus
       shell: bash
-      run: >
-          docker run --rm --platform ${{ matrix.specs.platform }} 
-            -e VISUS_GUI=${{ matrix.specs.gui }
-            -e PYTHON_VERSION=${{ matrix.python-version }}
-            -e PLATFORM=${{ matrix.specs.platform }}
-            -e Qt5_DIR=${{ matrix.specs.qt5-dir }}
-            -e WHEEL_PLATFORM_NAME=${{ matrix.specs.wheel-platform-name }}
-            -e PYPI_USERNAME=${{ secrets.PYPI_USERNAME }} 
-            -e PYPI_PASSWORD={ secrets.PYPI_PASSWORD }
-            -e DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME }}
-            -e DOCKER_TOKEN=${{ secrets.DOCKER_TOKEN }}
-            -e ANACONDA_TOKEN=${{ secrets.ANACONDA_TOKEN }}
-            -v $PWD:/home/OpenVisus -w /home/OpenVisus ${{ matrix.specs.docker-image }} 
-             bash .github/workflows/build-ubuntu-${{ matrix.specs.type }}.sh
+      run: |
+          docker run --rm --platform ${{ matrix.specs.platform }} \
+            -e VISUS_GUI=${{ matrix.specs.gui } \
+            -e PYTHON_VERSION=${{ matrix.python-version }} \
+            -e PLATFORM=${{ matrix.specs.platform }} \
+            -e Qt5_DIR=${{ matrix.specs.qt5-dir }} \
+            -e WHEEL_PLATFORM_NAME=${{ matrix.specs.wheel-platform-name }} \
+            -e PYPI_USERNAME=${{ secrets.PYPI_USERNAME }} \
+            -e PYPI_PASSWORD={ secrets.PYPI_PASSWORD } \
+            -e DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME }} \
+            -e DOCKER_TOKEN=${{ secrets.DOCKER_TOKEN }} \
+            -e ANACONDA_TOKEN=${{ secrets.ANACONDA_TOKEN }} \
+            -v $PWD:/home/OpenVisus \
+            -w /home/OpenVisus ${{ matrix.specs.docker-image }} \
+            bash .github/workflows/build-ubuntu-${{ matrix.specs.type }}.sh
 
 
 
