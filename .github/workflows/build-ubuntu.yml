@@ -18,4 +18,4 @@ jobs:
     
       - name: Test
         run: |
-            docker run -it --rm multiarch/ubuntu-core:arm64-wily 'bash -c "uname -a"'
+            docker run --rm multiarch/ubuntu-core:arm64-wily 'bash -c "uname -a"'
