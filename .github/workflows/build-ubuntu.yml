@@ -9,12 +9,12 @@ jobs:
       matrix:
         python-version: [ '3.8',] 
         specs: [
-            {key: 'cpyth-ngui-amd64',  platform: 'linux/amd64' , type: 'cpython', gui: '0', docker-image: 'visus/portable-linux-binaries_x86_64:2.0', qt5-dir: ''                      , wheel-platform-name: 'manylinux2010_x86_64'  },
-            {key: 'cpyth-ygui-amd64',  platform: 'linux/amd64' , type: 'cpython', gui: '1', docker-image: 'visus/portable-linux-binaries_x86_64:2.0', qt5-dir: '/opt/qt512'            , wheel-platform-name: 'manylinux2010_x86_64'  },
-            {key: 'cpyth-ngui-arm64',  platform: 'linux/arm64' , type: 'cpython', gui: '0', docker-image: 'nsdf/manylinux2014_aarch64:latest'       , qt5-dir: ''                      , wheel-platform-name: 'manylinux2014_aarch64' },
+            {key: 'cpyth-nogui-amd64',  platform: 'linux/amd64' , type: 'cpython', gui: '0', docker-image: 'visus/portable-linux-binaries_x86_64:2.0', qt5-dir: ''                      , wheel-platform-name: 'manylinux2010_x86_64'  },
+            {key: 'cpyth-gui-amd64'  ,  platform: 'linux/amd64' , type: 'cpython', gui: '1', docker-image: 'visus/portable-linux-binaries_x86_64:2.0', qt5-dir: '/opt/qt512'            , wheel-platform-name: 'manylinux2010_x86_64'  },
+            {key: 'cpyth-nogui-arm64',  platform: 'linux/arm64' , type: 'cpython', gui: '0', docker-image: 'nsdf/manylinux2014_aarch64:latest'       , qt5-dir: ''                      , wheel-platform-name: 'manylinux2014_aarch64' },
             
-            {key: 'conda-ygui-amd64',  platform: 'linux/amd64' , type: 'conda'  , gui: '1', docker-image: 'condaforge/mambaforge:latest'            , qt5-dir: 'lib/cmake/Qt5'         , wheel-platform-name: ''  },
-            {key: 'conda-ngui-arm64',  platform: 'linux/arm64' , type: 'conda'  , gui: '0', docker-image: 'condaforge/mambaforge:latest'            , qt5-dir: ''                      , wheel-platform-name: ''  }
+            {key: 'conda-gui-amd64'  ,  platform: 'linux/amd64' , type: 'conda'  , gui: '1', docker-image: 'condaforge/mambaforge:latest'            , qt5-dir: 'lib/cmake/Qt5'         , wheel-platform-name: ''  },
+            {key: 'conda-nogui-arm64',  platform: 'linux/arm64' , type: 'conda'  , gui: '0', docker-image: 'condaforge/mambaforge:latest'            , qt5-dir: ''                      , wheel-platform-name: ''  }
           ]
      
     steps:
@@ -42,7 +42,7 @@ jobs:
     - name: Compile OpenVisus
       shell: bash
       run: |
-          docker run --rm --platform ${{ matrix.specs.platform }} \
+          docker run --rm --privileged --platform ${{ matrix.specs.platform }} \
             -e VISUS_GUI=${{ matrix.specs.gui }} \
             -e PYTHON_VERSION=${{ matrix.python-version }} \
             -e PLATFORM=${{ matrix.specs.platform }} \
