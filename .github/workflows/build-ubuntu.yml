@@ -41,7 +41,11 @@ jobs:
                 
     - name: Compile OpenVisus
       shell: bash
-      run: docker run --rm --platform ${{ matrix.specs.platform }} -v $PWD:/home/OpenVisus -w /home/OpenVisus ${{ matrix.specs.docker-image }} bash /home/OpenVisus/.github/workflows/build-ubuntu-${{ matrix.specs.type }}.sh
+      run: |
+          set -e
+          set -x
+          ls
+          docker run --rm --platform ${{ matrix.specs.platform }} -v $PWD:/home/OpenVisus -w /home/OpenVisus ${{ matrix.specs.docker-image }} bash .github/workflows/build-ubuntu-${{ matrix.specs.type }}.sh
 
 
 
