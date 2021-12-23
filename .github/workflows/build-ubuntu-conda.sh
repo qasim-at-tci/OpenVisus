@@ -63,7 +63,7 @@ make install
 
 # configure and test
 conda develop ${PWD}/Release
-python -m OpenVisus configure
+python -m OpenVisus configure || python -m OpenVisus configure
 python -m OpenVisus test  
 python -m OpenVisus test-gui
 conda develop ${PWD}/Release --uninstall
