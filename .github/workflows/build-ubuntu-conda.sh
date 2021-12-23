@@ -8,8 +8,8 @@ uname -m
 GIT_TAG=$(git describe --tags --exact-match 2>/dev/null || true)
 
 # configure conda
-conda_packages=(python=${{ matrix.python-version }} numpy anaconda-client conda conda-build wheel gcc_linux-64 gxx_linux-64 make cmake swig)
-if [[ "${{ matrix.specs.gui }}" == "1" ]]; then 
+conda_packages=(python=${PYTHON_VERSION} numpy anaconda-client conda conda-build wheel gcc_linux-64 gxx_linux-64 make cmake swig)
+if [[ "${VISUS_GUI}" == "1" ]]; then 
   conda_packages+=(pyqt libglu)
 fi
 
@@ -26,9 +26,9 @@ cmake \
   -DCMAKE_INSTALL_PREFIX=${CONDA_PREFIX} \
   -DPython_EXECUTABLE=`which python` \
   -DVISUS_MODVISUS=0 \
-  -DVISUS_GUI=${{ matrix.specs.gui }} \
-  -DVISUS_SLAM=${{ matrix.specs.gui }} \
-  -DQt5_DIR="${CONDA_PREFIX}/${{ matrix.specs.qt5-dir }}" \
+  -DVISUS_GUI=${VISUS_GUI} \
+  -DVISUS_SLAM=${VISUS_GUI} \
+  -DQt5_DIR="${CONDA_PREFIX}/${Qt5_DIR}" \
    ../
    
 make -j
@@ -44,9 +44,9 @@ conda develop ${PWD}/Release --uninstall
 # upload conda package
 if [[ "${GIT_TAG}" != ""  ]] ; then
   pushd Release/OpenVisus
-  cp --no-clobber $CONDA_PREFIX/lib/python${{ matrix.python-version }}/distutils/command/bdist_conda* $CONDA_PREFIX/lib/python${{ matrix.python-version }}/site-packages/setuptools/_distutils/command/ # fix for bdist_not found    
+  cp --no-clobber $CONDA_PREFIX/lib/python${PYTHON_VERSION}/distutils/command/bdist_conda* $CONDA_PREFIX/lib/python${PYTHON_VERSION}/site-packages/setuptools/_distutils/command/ # fix for bdist_not found    
   python setup.py -q bdist_conda 1>/dev/null
   __filename__=`find ${CONDA_PREFIX} -iname "openvisus*.tar.bz2"  | head -n 1`
-  ${HOME}/anaconda3/bin/anaconda --verbose --show-traceback -t ${{ secrets.ANACONDA_TOKEN }} upload "${__filename__}"
+  ${HOME}/anaconda3/bin/anaconda --verbose --show-traceback -t ${ANACONDA_TOKEN} upload "${__filename__}"
   popd
 fi

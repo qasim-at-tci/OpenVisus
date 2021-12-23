@@ -8,7 +8,7 @@ GIT_TAG=$(git describe --tags --exact-match 2>/dev/null || true)
 
 # todo: enable also for arm64
 VISUS_MODVISUS=0
-if [[ '${PYTHON_VERSION}' == '3.7' && '${{ matrix.specs.gui }}' == '0' && '${{ matrix.specs.platform }}' == 'linux/amd64' ]] ; then
+if [[ '${PYTHON_VERSION}' == '3.7' && '${VISUS_GUI}' == '0' && '${PLATFORM}' == 'linux/amd64' ]] ; then
   VISUS_MODVISUS=1
 fi
 
@@ -16,9 +16,9 @@ mkdir -p build
 cd build
 cmake \
   -DPython_EXECUTABLE=`which python${PYTHON_VERSION}` \
-  -DQt5_DIR=${{ matrix.specs.qt5-dir }} \
-  -DVISUS_GUI=${{ matrix.specs.gui }}  \
-  -DVISUS_SLAM=${{ matrix.specs.gui }} \
+  -DQt5_DIR=${Qt5_DIR} \
+  -DVISUS_GUI=${VISUS_GUI}  \
+  -DVISUS_SLAM=${VISUS_GUI} \
   -DVISUS_MODVISUS=${VISUS_MODVISUS}  \
   ../
   
@@ -34,14 +34,14 @@ unset PYTHONPATH
 if [[ "${GIT_TAG}" != "" ]] ; then
   pushd Release/OpenVisus
   python${PYTHON_VERSION} -m pip install setuptools wheel twine 1>/dev/null 
-  python${PYTHON_VERSION} setup.py -q bdist_wheel --python-tag=cp${PYTHON_VERSION:0:1}${PYTHON_VERSION:2:1} --plat-name=${{ matrix.specs.wheel-platform-name }}
-  python${PYTHON_VERSION} -m twine upload --username ${{ secrets.PYPI_USERNAME }} --password ${{ secrets.PYPI_PASSWORD }} --skip-existing  "dist/*.whl" 
+  python${PYTHON_VERSION} setup.py -q bdist_wheel --python-tag=cp${PYTHON_VERSION:0:1}${PYTHON_VERSION:2:1} --plat-name=${WHEEL_PLATFORM_NAME}
+  python${PYTHON_VERSION} -m twine upload --username ${PYPI_USERNAME} --password ${PYPI_PASSWORD} --skip-existing  "dist/*.whl" 
   popd
   
   if [[ "${VISUS_MODVISUS}" == '1' ]] ; then
     sleep 30 # give time pypi to get the pushed file
     pushd ../Docker/mod_visus
-    echo ${{ secrets.DOCKER_TOKEN }} | docker login -u=${{ secrets.DOCKER_USERNAME }} --password-stdin
+    echo ${DOCKER_TOKEN} | docker login -u=${DOCKER_USERNAME} --password-stdin
     docker build --tag visus/mod_visus:$TAG --tag visus/mod_visus:latest --build-arg TAG=$TAG .
     docker push visus/mod_visus:$TAG
     docker push visus/mod_visus:latest
