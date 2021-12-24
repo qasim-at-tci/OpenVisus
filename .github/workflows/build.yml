@@ -92,8 +92,8 @@ jobs:
         mkdir -p build 
         cd build
         cmake -G "Visual Studio 16 2019" -A "x64" \
-         -DVISUS_GUI=${{ matrix.specs.gui }} \
-         -DVISUS_SLAM=${{ matrix.specs.gui }} \
+         -DVISUS_GUI=1 \
+         -DVISUS_SLAM=1 \
          -DQt5_DIR="${Qt5_Dir}/lib/cmake/Qt5" \
          -DPython_EXECUTABLE=${pythonLocation}/python.exe  \
          -DSWIG_EXECUTABLE=../swigwin-4.0.2/swig.exe \
@@ -113,8 +113,8 @@ jobs:
         mkdir -p build 
         cd build
         cmake -GXcode  \
-         -DVISUS_GUI=${{ matrix.specs.gui }} \
-         -DVISUS_SLAM=${{ matrix.specs.gui }} \
+         -DVISUS_GUI=1 \
+         -DVISUS_SLAM=1 \
          -DQt5_DIR="${Qt5_Dir}/lib/cmake/Qt5" \
          -DCMAKE_OSX_SYSROOT="/tmp/MacOSX-SDKs/MacOSX10.9.sdk" \
          -DPython_EXECUTABLE=${pythonLocation}/python  \
@@ -135,8 +135,8 @@ jobs:
           cmake \
             -DPython_EXECUTABLE=`/usr/local/bin/python${{ matrix.python-version }}` \
             -DQt5_DIR=/opt/qt512 \
-            -DVISUS_GUI=${{ matrix.specs.gui }} \
-            -DVISUS_SLAM=${{ matrix.specs.gui }} \
+            -DVISUS_GUI=1 \
+            -DVISUS_SLAM=1 \
             -DVISUS_MODVISUS=1  \
             ../ && \
           make -j && \
@@ -151,7 +151,7 @@ jobs:
       run: |
         set -e
         set -x
-        
+
         GIT_TAG=$(git describe --tags --exact-match 2>/dev/null || true)
         PYTHON_VERSION=${{ matrix.python-version }}
 
