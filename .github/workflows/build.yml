@@ -117,25 +117,6 @@ jobs:
         cmake --build ./ --target ALL_BUILD --config Release --parallel 4 
         cmake --build ./ --target install   --config Release 
 
-    # ____________________________________________ ubuntu
-
-
-    - #name: Set up QEMU
-      # if:  matrix.specs.platform=='linux/arm64'
-      # uses: docker/setup-qemu-action@v1
-      # with:
-      #   platforms: all
-        
-    - # name: Set up Docker Buildx
-      # if:  matrix.specs.platform=='linux/arm64'
-      #id: buildx
-      #uses: docker/setup-buildx-action@v1
-      
-    - #name: Available platforms
-      #if:  matrix.specs.platform=='linux/arm64'
-      #run: echo ${{ steps.buildx.outputs.platforms }}
-
-
     - name: Compile OpenVisus (ubuntu)
       if:  matrix.specs.os=='ubuntu-latest'
       shell: bash
