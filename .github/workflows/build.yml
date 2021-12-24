@@ -150,8 +150,9 @@ jobs:
 
         GIT_TAG=$(git describe --tags --exact-match 2>/dev/null || true)
         PYTHON_VERSION=${{ matrix.python-version }}
-
-        export PYTHONPATH=$PWD/build/Release
+        
+        cd build
+        export PYTHONPATH=./Release
         ${pythonLocation}/python -m OpenVisus configure || true  # segmentation fault problem on linux
         ${pythonLocation}/python -m OpenVisus test
         ${pythonLocation}/python -m OpenVisus test-gui 
@@ -159,9 +160,9 @@ jobs:
 
         # create a version without gui
         if [[ "1" == "1" ]] ; then
-          mkdir -p build/Release/nogui
-          cp -R build/Release/OpenVisus build/Release/nogui/OpenVisus
-          pushd build/Release/nogui/OpenVisus
+          mkdir -p Release/nogui
+          cp -R Release/OpenVisus Release/nogui/OpenVisus
+          pushd Release/nogui/OpenVisus
           rm -Rf QT_VERSION rm -Rf QT_VERSION $(find . -iname "*VisusGui*") 
           popd
         fi
@@ -175,17 +176,17 @@ jobs:
           fi
         }
 
-        pushd build/Release/OpenVisus
+        pushd Release/OpenVisus
         CreateWheelAndUpload
         popd
         
-        pushd build/Release/nogui/OpenVisus
+        pushd Release/nogui/OpenVisus
         CreateWheelAndUpload
         popd
 
         # create Docker mod_visus and upload (see Docker file, it's internal python is 3.7)
         if [[ "${{matrix.specs.os}}" == "ubuntu-latest" && "${GIT_TAG}" != "" && "${PYTHON_VERSION}" == "3.7"  ]] ; then
-          pushd Docker/mod_visus
+          pushd ../Docker/mod_visus
           echo ${{ secrets.DOCKER_TOKEN }}  | docker login -u=${{ secrets.DOCKER_USERNAME }}  --password-stdin
           sleep 30 # give time pypi to get the pushed file
           docker build --tag visus/mod_visus:$GIT_TAG --tag visus/mod_visus:latest --build-arg TAG=$GIT_TAG .
@@ -215,6 +216,8 @@ jobs:
 
           GIT_TAG=$(git describe --tags --exact-match 2>/dev/null || true)
 
+          CD build
+
           # configure conda
           conda config --set always_yes yes --set changeps1 no --set anaconda_upload no   1>/dev/null
           conda install --yes conda            1>/dev/null  || true
@@ -226,7 +229,7 @@ jobs:
             rm -Rf $(find ${CONDA_PREFIX} -iname "openvisus*.tar.bz2")  || true
 
             # fix problem of bdist_conda command not found
-            cp --no-clobber \
+            cp -n \
               ${CONDA_PREFIX}/lib/python${{ matrix.python-version }}/distutils/command/bdist_conda* \
               ${CONDA_PREFIX}/lib/python${{ matrix.python-version }}/site-packages/setuptools/_distutils/command/
 
@@ -237,10 +240,10 @@ jobs:
             fi
           }
 
-          pushd build/Release/OpenVisus
+          pushd Release/OpenVisus
           BuildCondaAndUpload
           popd
 
-          pushd build/nogui/Release/OpenVisus
+          pushd Release/nogui/OpenVisus
           BuildCondaAndUpload
           popd
