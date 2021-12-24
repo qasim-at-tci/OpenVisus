@@ -7,17 +7,7 @@ jobs:
     strategy:
       fail-fast: false  
       matrix:
-        python-version: [ '3.8',] 
-        specs: [
-            {key: 'cpyth-nogui-amd64',  platform: 'linux/amd64' , type: 'cpython', gui: '0', docker-image: 'visus/portable-linux-binaries_x86_64:2.0', qt5-dir: ''                      , wheel-platform-name: 'manylinux2010_x86_64'  },
-            {key: 'cpyth-gui-amd64'  ,  platform: 'linux/amd64' , type: 'cpython', gui: '1', docker-image: 'visus/portable-linux-binaries_x86_64:2.0', qt5-dir: '/opt/qt512'            , wheel-platform-name: 'manylinux2010_x86_64'  },
-            {key: 'cpyth-nogui-arm64',  platform: 'linux/arm64' , type: 'cpython', gui: '0', docker-image: 'nsdf/manylinux2014_aarch64:latest'       , qt5-dir: ''                      , wheel-platform-name: 'manylinux2014_aarch64' },
-            
-            # NOTE: I am having HUGE problems with conda + pyqt so I am disabling the GUI for now
-            {key: 'conda-gui-amd64'  ,  platform: 'linux/amd64' , type: 'conda'  , gui: '0', docker-image: 'continuumio/miniconda3:latest'            , qt5-dir: 'lib/cmake/Qt5'         , wheel-platform-name: ''  },
-            {key: 'conda-nogui-arm64',  platform: 'linux/arm64' , type: 'conda'  , gui: '0', docker-image: 'continuumio/miniconda3:latest'            , qt5-dir: ''                      , wheel-platform-name: ''  }
-          ]
-     
+        python-version: [ '3.8'] 
     steps:
     
       # ////////////////////////////////////////////////////////////
@@ -25,38 +15,132 @@ jobs:
     - name: git clone OpenVisus
       uses: actions/checkout@v2
 
-    - name: Set up QEMU
-      if:  matrix.specs.platform=='linux/arm64'
-      uses: docker/setup-qemu-action@v1
-      with:
-        platforms: all
+    - #name: Set up QEMU
+      # if:  matrix.specs.platform=='linux/arm64'
+      # uses: docker/setup-qemu-action@v1
+      # with:
+      #   platforms: all
         
-    - name: Set up Docker Buildx
-      if:  matrix.specs.platform=='linux/arm64'
-      id: buildx
-      uses: docker/setup-buildx-action@v1
+    - # name: Set up Docker Buildx
+      # if:  matrix.specs.platform=='linux/arm64'
+      #id: buildx
+      #uses: docker/setup-buildx-action@v1
       
-    - name: Available platforms
-      if:  matrix.specs.platform=='linux/arm64'
-      run: echo ${{ steps.buildx.outputs.platforms }}
-                
+    - #name: Available platforms
+      #if:  matrix.specs.platform=='linux/arm64'
+      #run: echo ${{ steps.buildx.outputs.platforms }}
+       
+    # ____________________________________________ INSTALL CPYTHON 
+    - name: Install CPython 
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python-version }} 
+        architecture: 'x64'
+
+
     - name: Compile OpenVisus
       shell: bash
+      env:
+        PYTHON_VERSION: ${{ matrix.python-version }} 
       run: |
-          docker run --rm --privileged --platform ${{ matrix.specs.platform }} \
-            -e VISUS_GUI=${{ matrix.specs.gui }} \
-            -e PYTHON_VERSION=${{ matrix.python-version }} \
-            -e PLATFORM=${{ matrix.specs.platform }} \
-            -e Qt5_DIR=${{ matrix.specs.qt5-dir }} \
-            -e WHEEL_PLATFORM_NAME=${{ matrix.specs.wheel-platform-name }} \
-            -e PYPI_USERNAME=${{ secrets.PYPI_USERNAME }} \
-            -e PYPI_PASSWORD=${{ secrets.PYPI_PASSWORD }} \
-            -e DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME }} \
-            -e DOCKER_TOKEN=${{ secrets.DOCKER_TOKEN }} \
-            -e ANACONDA_TOKEN=${{ secrets.ANACONDA_TOKEN }} \
-            -v $PWD:/home/OpenVisus \
-            -w /home/OpenVisus ${{ matrix.specs.docker-image }} \
-            bash .github/workflows/build-ubuntu-${{ matrix.specs.type }}.sh
+        set -e
+        set -x
 
+        uname -m
+        GIT_TAG=$(git describe --tags --exact-match 2>/dev/null || true)
 
+        mkdir -p build 
+        cd build
+        docker run --rm --platform linux/amd64  -v $PWD:/home/OpenVisus -w /home/OpenVisus/build visus/portable-linux-binaries_x86_64:2.0 \
+          cmake -DPython_EXECUTABLE=`/usr/local/bin/python${PYTHON_VERSION}` -DQt5_DIR=/opt/qt512 -DVISUS_GUI=${VISUS_GUI} -DVISUS_SLAM=${VISUS_GUI} -DVISUS_MODVISUS=1  ../ && \
+          make -j && \
+          make install
+        sudo chown -R root:root  build
+        sudo chmod -R a+rwx      build
 
+        export PYTHONPATH=$PWD/Release
+        ${pythonLocation}/python -m OpenVisus configure || true  # segmentation fault problem
+        ${pythonLocation}/python -m OpenVisus test
+        ${pythonLocation}/python -m OpenVisus test-gui 
+        unset PYTHONPATH
+
+        # create a version without gui
+        if [[ "1" == "1" ]] ; then
+          mkdir -p Release/nogui
+          cp -R Release/OpenVisus Release/nogui/OpenVisus
+          pushd Release/nogui/OpenVisus
+          rm -Rf QT_VERSION VisusGui* _VisusGui* bin/VisusGui* include/Gui lib/VisusGui*
+          popd
+        fi
+
+        function CreateWheelAndUpload() {
+          ${pythonLocation}/python -m pip install setuptools wheel twine 1>/dev/null 
+          ${pythonLocation}/python setup.py -q bdist_wheel --python-tag=cp${PYTHON_VERSION:0:1}${PYTHON_VERSION:2:1} --plat-name=manylinux2010_x86_64          
+          if [[ "${GIT_TAG}" != "" ]] ; then
+            ${pythonLocation}/python -m twine upload --username ${{ secrets.PYPI_USERNAME }} --password ${{ secrets.PYPI_PASSWORD }}  --skip-existing  "dist/*.whl"
+          fi
+        }
+
+        pushd Release/OpenVisus
+        CreateWheelAndUpload
+        popd
+        
+        pushd Release/nogui/OpenVisus
+        CreateWheelAndUpload
+        popd
+
+        # create Docker mod_visus and upload
+        if [[ "${GIT_TAG}" != "" && '${PYTHON_VERSION}' == '3.7'  ]] ; then
+          pushd ../Docker/mod_visus
+          echo ${{ secrets.DOCKER_TOKEN }}  | docker login -u=${{ secrets.DOCKER_USERNAME }}  --password-stdin
+          sleep 30 # give time pypi to get the pushed file
+          docker build --tag visus/mod_visus:$GIT_TAG --tag visus/mod_visus:latest --build-arg TAG=$GIT_TAG .
+          docker push visus/mod_visus:$GIT_TAG && docker push visus/mod_visus:latest
+          popd
+        fi
+
+    # ____________________________________________ INSTALL CONDA
+    - name: Install and confifure Miniconda 
+      uses: conda-incubator/setup-miniconda@v2
+      continue-on-error: true # if fails the cleaning process
+      with:
+        miniconda-version: 'latest'
+        python-version: ${{ matrix.python-version }}
+        activate-environment: tmp
+        auto-update-conda: false
+        channels: conda-forge,defaults
+
+    # ____________________________________________ DISTRIB CONDA 
+    # use the same PyPi package, all my attempts to use conda pyqt didn't work out
+    
+    - name: Distrib OpenVisus
+      shell: bash -l {0}
+      run: |
+          set -e 
+          set -x 
+
+          GIT_TAG=$(git describe --tags --exact-match 2>/dev/null || true)
+
+          # configure conda
+          conda config --set always_yes yes --set changeps1 no --set anaconda_upload no   1>/dev/null
+          conda install --yes conda            1>/dev/null  || true
+          conda install --yes anaconda-client  1>/dev/null  || true
+          conda install --yes conda-build      1>/dev/null  || true
+          conda install --yes wheel            1>/dev/null  || true
+          
+          function BuildCondaAndUpload() {
+            rm -Rf $(find ${CONDA_PREFIX} -iname "openvisus*.tar.bz2")  || true
+            python setup.py -q bdist_conda 1>/dev/null
+            if [[ "${GIT_TAG}" != ""  ]] ; then
+             export PATH=$HOME/anaconda3/bin:$PATH
+             anaconda --verbose --show-traceback  -t ${{ secrets.ANACONDA_TOKEN }}   upload `find ${CONDA_PREFIX} -iname "openvisus*.tar.bz2"  | head -n 1`
+            fi
+          }
+
+          pushd build/Release/OpenVisus
+          BuildCondaAndUpload()
+          popd
+
+          pushd build/nogui/Release/OpenVisus
+          BuildCondaAndUpload()
+          popd
