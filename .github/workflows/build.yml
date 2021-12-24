@@ -132,16 +132,11 @@ jobs:
         set -x
         mkdir build 
         docker run --rm --platform linux/amd64  -v $PWD:/home/OpenVisus -w /home/OpenVisus visus/portable-linux-binaries_x86_64:2.0 \
-          cd build && \
-          cmake \
-            -DPython_EXECUTABLE=`/usr/local/bin/python${{ matrix.python-version }}` \
-            -DQt5_DIR=/opt/qt512 \
-            -DVISUS_GUI=1 \
-            -DVISUS_SLAM=1 \
-            -DVISUS_MODVISUS=1  \
-            ../ && \
-          make -j && \
-          make install
+          bash -c "cd build && \
+                   cmake -DPython_EXECUTABLE=`/usr/local/bin/python${{ matrix.python-version }}` -DQt5_DIR=/opt/qt512 -DVISUS_GUI=1 -DVISUS_SLAM=1 -DVISUS_MODVISUS=1 ../ && \
+                   make -j && \
+                   make install
+                  "
         sudo chown -R root:root  build
         sudo chmod -R a+rwx      build
 
