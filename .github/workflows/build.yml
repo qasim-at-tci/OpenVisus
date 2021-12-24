@@ -1,4 +1,4 @@
-name: build-ubuntu
+name: build
 on: [push]
 jobs:
 
@@ -129,8 +129,8 @@ jobs:
           cmake \
             -DPython_EXECUTABLE=`/usr/local/bin/python${{ matrix.python-version }}` \
             -DQt5_DIR=/opt/qt512 \
-            -DVISUS_GUI=${VISUS_GUI} \
-            -DVISUS_SLAM=${VISUS_GUI} \
+            -DVISUS_GUI=${{ matrix.specs.gui }} \
+            -DVISUS_SLAM=${{ matrix.specs.gui }} \
             -DVISUS_MODVISUS=1  \
             ../ && \
           make -j && \
@@ -147,7 +147,6 @@ jobs:
         uname -m
         GIT_TAG=$(git describe --tags --exact-match 2>/dev/null || true)
         PYTHON_VERSION=${{ matrix.python-version }}
-
 
         export PYTHONPATH=$PWD/build/Release
         ${pythonLocation}/python -m OpenVisus configure || true  # segmentation fault problem on linux
