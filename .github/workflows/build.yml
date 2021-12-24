@@ -1,0 +1,262 @@
+name: build-ubuntu
+on: [push]
+jobs:
+
+  build-job:
+    runs-on: ${{ matrix.specs.os }} 
+    strategy:
+      fail-fast: false  
+      matrix:
+        python-version: [ '3.8'] 
+        specs: [ 
+          {os: 'windows-latest', wheel-platform-name: 'win_amd64'}, 
+          {os: 'macos-latest'  , wheel-platform-name: 'macosx_10_9_x86_64'}, 
+          {os: 'ubuntu-latest' , wheel-platform-name: 'manylinux2010_x86_64'}]
+    steps:
+    
+      # ////////////////////////////////////////////////////////////
+    
+    - name: git clone OpenVisus
+      uses: actions/checkout@v2
+
+    - name: Install CPython 
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python-version }} 
+        architecture: 'x64'
+
+    # ____________________________________________ WINDOWS
+
+    - name: Install CMake
+      if: matrix.specs.os == 'windows-latest'
+      uses: lukka/get-cmake@latest
+      
+    - name: Install Swig 
+      shell: bash -l {0}
+      run: |
+        set -e
+        set -x
+        # problems with choco
+        curl -L --insecure https://cfhcable.dl.sourceforge.net/project/swig/swigwin/swigwin-4.0.2/swigwin-4.0.2.zip -O  
+        unzip swigwin-4.0.2.zip 
+
+
+    - name: git clone opsray 
+      if: matrix.specs.os == 'windows-latest'
+      uses: nick-invision/retry@v1
+      with:
+        max_attempts: 3
+        timeout_minutes: 4
+        retry_wait_seconds: 5
+        command: 'rm -Rf ExternalLibs/ospray_win && git clone https://github.com/sci-visus/ospray_win.git ExternalLibs/ospray_win'
+
+    - name: Install Qt 
+      if: matrix.specs.os == 'windows-latest'
+      uses: jurplel/install-qt-action@v2
+      with:
+        version: '5.12.8'
+        arch: 'win64_msvc2017_64'
+        install-deps: 'true'
+        dir: C:\
+        setup-python: 'false' 
+
+    - name: Compile OpenVisus (windows)
+      if:  matrix.specs.os=='windows-latest'
+      shell: bash
+      run: |
+        set -e
+        set -x
+        mkdir -p build 
+        cd build
+        cmake -G "Visual Studio 16 2019" -A "x64" \
+         -DVISUS_GUI=${{ matrix.specs.gui }} \
+         -DVISUS_SLAM=${{ matrix.specs.gui }} \
+         -DQt5_DIR="${Qt5_Dir}/lib/cmake/Qt5" \
+         -DPython_EXECUTABLE=${pythonLocation}/python.exe  \
+         -DSWIG_EXECUTABLE=../swigwin-4.0.2/swig.exe \
+         ../
+        cmake --build . --target ALL_BUILD --config Release --parallel 4
+        cmake --build . --target install   --config Release
+
+    # ____________________________________________ macos
+
+    - name: Install SDK 10.9 
+      if:  matrix.specs.os=='macos-latest'
+      uses: nick-invision/retry@v1
+      with:
+        max_attempts: 3
+        timeout_minutes: 5
+        retry_wait_seconds: 5
+        command: 'cd /tmp && rm -Rf MacOSX-SDKs && git clone https://github.com/phracker/MacOSX-SDKs.git'
+
+    - name: Install Qt for macos
+      if:  matrix.specs.os=='macos-latest'
+      uses: jurplel/install-qt-action@v2
+      with:
+        version: '5.12.8'
+        target: 'desktop'
+        install-deps: 'true'  
+        dir: /tmp
+        setup-python: 'false' 
+
+    - name: Compile OpenVisus (macos)
+      if:  matrix.specs.os=='macos-latest'
+      shell: bash
+      run: |
+        set -e
+        set -x
+        mkdir -p build 
+        cd build
+        cmake -GXcode  \
+         -DVISUS_GUI=${{ matrix.specs.gui }} \
+         -DVISUS_SLAM=${{ matrix.specs.gui }} \
+         -DQt5_DIR="${Qt5_Dir}/lib/cmake/Qt5" \
+         -DCMAKE_OSX_SYSROOT="/tmp/MacOSX-SDKs/MacOSX10.9.sdk" \
+         -DPython_EXECUTABLE=${pythonLocation}/python  \
+         ../
+        cmake --build ./ --target ALL_BUILD --config Release --parallel 4 
+        cmake --build ./ --target install   --config Release 
+
+    # ____________________________________________ ubuntu
+
+
+    - #name: Set up QEMU
+      # if:  matrix.specs.platform=='linux/arm64'
+      # uses: docker/setup-qemu-action@v1
+      # with:
+      #   platforms: all
+        
+    - # name: Set up Docker Buildx
+      # if:  matrix.specs.platform=='linux/arm64'
+      #id: buildx
+      #uses: docker/setup-buildx-action@v1
+      
+    - #name: Available platforms
+      #if:  matrix.specs.platform=='linux/arm64'
+      #run: echo ${{ steps.buildx.outputs.platforms }}
+
+
+    - name: Compile OpenVisus (ubuntu)
+      if:  matrix.specs.os=='ubuntu-latest'
+      shell: bash
+      run: |
+        set -e
+        set -x
+        mkdir -p build 
+        cd build
+        docker run --rm --platform linux/amd64  -v $PWD:/home/OpenVisus -w /home/OpenVisus/build visus/portable-linux-binaries_x86_64:2.0 \
+          cmake \
+            -DPython_EXECUTABLE=`/usr/local/bin/python${{ matrix.python-version }}` \
+            -DQt5_DIR=/opt/qt512 \
+            -DVISUS_GUI=${VISUS_GUI} \
+            -DVISUS_SLAM=${VISUS_GUI} \
+            -DVISUS_MODVISUS=1  \
+            ../ && \
+          make -j && \
+          make install
+        sudo chown -R root:root  build
+        sudo chmod -R a+rwx      build
+
+    # ____________________________________________ common
+
+    - name: Test and upload wheel
+      shell: bash
+      run: |
+
+        uname -m
+        GIT_TAG=$(git describe --tags --exact-match 2>/dev/null || true)
+        PYTHON_VERSION=${{ matrix.python-version }}
+
+
+        export PYTHONPATH=$PWD/build/Release
+        ${pythonLocation}/python -m OpenVisus configure || true  # segmentation fault problem on linux
+        ${pythonLocation}/python -m OpenVisus test
+        ${pythonLocation}/python -m OpenVisus test-gui 
+        unset PYTHONPATH
+
+        # create a version without gui
+        if [[ "1" == "1" ]] ; then
+          mkdir -p build/Release/nogui
+          cp -R build/Release/OpenVisus build/Release/nogui/OpenVisus
+          pushd build/Release/nogui/OpenVisus
+          rm -Rf QT_VERSION rm -Rf QT_VERSION $(find . -iname "*VisusGui*") 
+          popd
+        fi
+
+        function CreateWheelAndUpload() {
+          rm -Rf ./dist
+          ${pythonLocation}/python -m pip install setuptools wheel twine 1>/dev/null 
+          ${pythonLocation}/python setup.py -q bdist_wheel --python-tag=cp${PYTHON_VERSION:0:1}${PYTHON_VERSION:2:1} --plat-name=${{ matrix.specs.wheel-platform-name }}          
+          if [[ "${GIT_TAG}" != "" ]] ; then
+            ${pythonLocation}/python -m twine upload --username ${{ secrets.PYPI_USERNAME }} --password ${{ secrets.PYPI_PASSWORD }}  --skip-existing  "dist/*.whl"
+          fi
+        }
+
+        pushd build/Release/OpenVisus
+        CreateWheelAndUpload
+        popd
+        
+        pushd build/Release/nogui/OpenVisus
+        CreateWheelAndUpload
+        popd
+
+        # create Docker mod_visus and upload
+        if [[ "${{matrix.specs.os}}" == "ubuntu-latest" && ${GIT_TAG}" != "" && '${PYTHON_VERSION}' == '3.7'  ]] ; then
+          pushd Docker/mod_visus
+          echo ${{ secrets.DOCKER_TOKEN }}  | docker login -u=${{ secrets.DOCKER_USERNAME }}  --password-stdin
+          sleep 30 # give time pypi to get the pushed file
+          docker build --tag visus/mod_visus:$GIT_TAG --tag visus/mod_visus:latest --build-arg TAG=$GIT_TAG .
+          docker push visus/mod_visus:$GIT_TAG && docker push visus/mod_visus:latest
+          popd
+        fi
+
+    # ____________________________________________ INSTALL CONDA
+    - name: Install and confifure Miniconda 
+      uses: conda-incubator/setup-miniconda@v2
+      continue-on-error: true # if fails the cleaning process
+      with:
+        miniconda-version: 'latest'
+        python-version: ${{ matrix.python-version }}
+        activate-environment: tmp
+        auto-update-conda: false
+        channels: conda-forge,defaults
+
+    # ____________________________________________ DISTRIB CONDA 
+    # use the same PyPi package, all my attempts to use conda pyqt didn't work out
+    - name: Distrib OpenVisus
+      shell: bash -l {0}
+      run: |
+          set -e 
+          set -x 
+
+          GIT_TAG=$(git describe --tags --exact-match 2>/dev/null || true)
+
+          # configure conda
+          conda config --set always_yes yes --set changeps1 no --set anaconda_upload no   1>/dev/null
+          conda install --yes conda            1>/dev/null  || true
+          conda install --yes anaconda-client  1>/dev/null  || true
+          conda install --yes conda-build      1>/dev/null  || true
+          conda install --yes wheel            1>/dev/null  || true
+          
+          function BuildCondaAndUpload() {
+            rm -Rf $(find ${CONDA_PREFIX} -iname "openvisus*.tar.bz2")  || true
+
+            # fix problem of bdist_conda command not found
+            cp --no-clobber \
+              ${CONDA_PREFIX}/lib/python${{ matrix.python-version }}/distutils/command/bdist_conda* \
+              ${CONDA_PREFIX}/lib/python${{ matrix.python-version }}/site-packages/setuptools/_distutils/command/
+
+            python setup.py -q bdist_conda 1>/dev/null
+            if [[ "${GIT_TAG}" != ""  ]] ; then
+             export PATH=$HOME/anaconda3/bin:$PATH
+             anaconda --verbose --show-traceback  -t ${{ secrets.ANACONDA_TOKEN }}   upload `find ${CONDA_PREFIX} -iname "openvisus*.tar.bz2"  | head -n 1`
+            fi
+          }
+
+          pushd build/Release/OpenVisus
+          BuildCondaAndUpload()
+          popd
+
+          pushd build/nogui/Release/OpenVisus
+          BuildCondaAndUpload()
+          popd
