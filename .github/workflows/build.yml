@@ -131,7 +131,8 @@ jobs:
         set -e
         set -x
         mkdir build 
-        docker run --rm --platform linux/amd64  -v $PWD:/home/OpenVisus -w /home/OpenVisus/build visus/portable-linux-binaries_x86_64:2.0 \
+        docker run --rm --platform linux/amd64  -v $PWD:/home/OpenVisus -w /home/OpenVisus visus/portable-linux-binaries_x86_64:2.0 \
+          cd build && \
           cmake \
             -DPython_EXECUTABLE=`/usr/local/bin/python${{ matrix.python-version }}` \
             -DQt5_DIR=/opt/qt512 \
@@ -187,13 +188,14 @@ jobs:
         CreateWheelAndUpload
         popd
 
-        # create Docker mod_visus and upload
-        if [[ "${{matrix.specs.os}}" == "ubuntu-latest" && ${GIT_TAG}" != "" && '${PYTHON_VERSION}' == '3.7'  ]] ; then
+        # create Docker mod_visus and upload (see Docker file, it's internal python is 3.7)
+        if [[ "${{matrix.specs.os}}" == "ubuntu-latest" && "${GIT_TAG}" != "" && "${PYTHON_VERSION}" == "3.7"  ]] ; then
           pushd Docker/mod_visus
           echo ${{ secrets.DOCKER_TOKEN }}  | docker login -u=${{ secrets.DOCKER_USERNAME }}  --password-stdin
           sleep 30 # give time pypi to get the pushed file
           docker build --tag visus/mod_visus:$GIT_TAG --tag visus/mod_visus:latest --build-arg TAG=$GIT_TAG .
-          docker push visus/mod_visus:$GIT_TAG && docker push visus/mod_visus:latest
+          docker push visus/mod_visus:$GIT_TAG 
+          docker push visus/mod_visus:latest
           popd
         fi
 
@@ -236,7 +238,7 @@ jobs:
             python setup.py -q bdist_conda 1>/dev/null
             if [[ "${GIT_TAG}" != ""  ]] ; then
              export PATH=$HOME/anaconda3/bin:$PATH
-             anaconda --verbose --show-traceback  -t ${{ secrets.ANACONDA_TOKEN }}   upload `find ${CONDA_PREFIX} -iname "openvisus*.tar.bz2"  | head -n 1`
+             anaconda --verbose --show-traceback  -t ${{ secrets.ANACONDA_TOKEN }} upload `find ${CONDA_PREFIX} -iname "openvisus*.tar.bz2"  | head -n 1`
             fi
           }
 
