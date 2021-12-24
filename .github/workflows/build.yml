@@ -25,13 +25,14 @@ jobs:
         python-version: ${{ matrix.python-version }} 
         architecture: 'x64'
 
-    # ____________________________________________ WINDOWS
+    # ____________________________________________ DEPENDENCIES
 
-    - name: Install CMake
+    - name: Install CMake (windows)
       if: matrix.specs.os == 'windows-latest'
       uses: lukka/get-cmake@latest
       
-    - name: Install Swig 
+    - name: Install Swig (windows)
+      if: matrix.specs.os == 'windows-latest'
       shell: bash -l {0}
       run: |
         set -e
@@ -41,7 +42,7 @@ jobs:
         unzip swigwin-4.0.2.zip 
 
 
-    - name: git clone opsray 
+    - name: git clone opsray (windows)
       if: matrix.specs.os == 'windows-latest'
       uses: nick-invision/retry@v1
       with:
@@ -50,7 +51,17 @@ jobs:
         retry_wait_seconds: 5
         command: 'rm -Rf ExternalLibs/ospray_win && git clone https://github.com/sci-visus/ospray_win.git ExternalLibs/ospray_win'
 
-    - name: Install Qt 
+
+    - name: Install SDK 10.9 (macos)
+      if:  matrix.specs.os=='macos-latest'
+      uses: nick-invision/retry@v1
+      with:
+        max_attempts: 3
+        timeout_minutes: 5
+        retry_wait_seconds: 5
+        command: 'cd /tmp && rm -Rf MacOSX-SDKs && git clone https://github.com/phracker/MacOSX-SDKs.git'
+
+    - name: Install Qt (windows)
       if: matrix.specs.os == 'windows-latest'
       uses: jurplel/install-qt-action@v2
       with:
@@ -59,6 +70,18 @@ jobs:
         install-deps: 'true'
         dir: C:\
         setup-python: 'false' 
+
+    - name: Install Qt (macos)
+      if:  matrix.specs.os=='macos-latest'
+      uses: jurplel/install-qt-action@v2
+      with:
+        version: '5.12.8'
+        target: 'desktop'
+        install-deps: 'true'  
+        dir: /tmp
+        setup-python: 'false' 
+
+    # ____________________________________________ WINDOWS
 
     - name: Compile OpenVisus (windows)
       if:  matrix.specs.os=='windows-latest'
@@ -80,24 +103,6 @@ jobs:
 
     # ____________________________________________ macos
 
-    - name: Install SDK 10.9 
-      if:  matrix.specs.os=='macos-latest'
-      uses: nick-invision/retry@v1
-      with:
-        max_attempts: 3
-        timeout_minutes: 5
-        retry_wait_seconds: 5
-        command: 'cd /tmp && rm -Rf MacOSX-SDKs && git clone https://github.com/phracker/MacOSX-SDKs.git'
-
-    - name: Install Qt for macos
-      if:  matrix.specs.os=='macos-latest'
-      uses: jurplel/install-qt-action@v2
-      with:
-        version: '5.12.8'
-        target: 'desktop'
-        install-deps: 'true'  
-        dir: /tmp
-        setup-python: 'false' 
 
     - name: Compile OpenVisus (macos)
       if:  matrix.specs.os=='macos-latest'
@@ -117,14 +122,15 @@ jobs:
         cmake --build ./ --target ALL_BUILD --config Release --parallel 4 
         cmake --build ./ --target install   --config Release 
 
+    # ____________________________________________ ubuntu
+
     - name: Compile OpenVisus (ubuntu)
       if:  matrix.specs.os=='ubuntu-latest'
       shell: bash
       run: |
         set -e
         set -x
-        mkdir -p build 
-        cd build
+        mkdir build 
         docker run --rm --platform linux/amd64  -v $PWD:/home/OpenVisus -w /home/OpenVisus/build visus/portable-linux-binaries_x86_64:2.0 \
           cmake \
             -DPython_EXECUTABLE=`/usr/local/bin/python${{ matrix.python-version }}` \
@@ -143,8 +149,9 @@ jobs:
     - name: Test and upload wheel
       shell: bash
       run: |
-
-        uname -m
+        set -e
+        set -x
+        
         GIT_TAG=$(git describe --tags --exact-match 2>/dev/null || true)
         PYTHON_VERSION=${{ matrix.python-version }}
 
@@ -166,7 +173,7 @@ jobs:
         function CreateWheelAndUpload() {
           rm -Rf ./dist
           ${pythonLocation}/python -m pip install setuptools wheel twine 1>/dev/null 
-          ${pythonLocation}/python setup.py -q bdist_wheel --python-tag=cp${PYTHON_VERSION:0:1}${PYTHON_VERSION:2:1} --plat-name=${{ matrix.specs.wheel-platform-name }}          
+          ${pythonLocation}/python setup.py -q bdist_wheel --python-tag=cp${PYTHON_VERSION:0:1}${PYTHON_VERSION:2:1} --plat-name=${{ matrix.specs.wheel-platform-name }}
           if [[ "${GIT_TAG}" != "" ]] ; then
             ${pythonLocation}/python -m twine upload --username ${{ secrets.PYPI_USERNAME }} --password ${{ secrets.PYPI_PASSWORD }}  --skip-existing  "dist/*.whl"
           fi
