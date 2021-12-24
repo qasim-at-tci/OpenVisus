@@ -133,7 +133,7 @@ jobs:
         mkdir build 
         docker run --rm --platform linux/amd64  -v $PWD:/home/OpenVisus -w /home/OpenVisus visus/portable-linux-binaries_x86_64:2.0 \
           bash -c "cd build && \
-                   cmake -DPython_EXECUTABLE=`/usr/local/bin/python${{ matrix.python-version }}` -DQt5_DIR=/opt/qt512 -DVISUS_GUI=1 -DVISUS_SLAM=1 -DVISUS_MODVISUS=1 ../ && \
+                   cmake -DPython_EXECUTABLE=/usr/local/bin/python${{ matrix.python-version }} -DQt5_DIR=/opt/qt512 -DVISUS_GUI=1 -DVISUS_SLAM=1 -DVISUS_MODVISUS=1 ../ && \
                    make -j && \
                    make install
                   "
@@ -238,9 +238,9 @@ jobs:
           }
 
           pushd build/Release/OpenVisus
-          BuildCondaAndUpload()
+          BuildCondaAndUpload
           popd
 
           pushd build/nogui/Release/OpenVisus
-          BuildCondaAndUpload()
+          BuildCondaAndUpload
           popd
