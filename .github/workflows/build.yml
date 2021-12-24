@@ -216,7 +216,7 @@ jobs:
 
           GIT_TAG=$(git describe --tags --exact-match 2>/dev/null || true)
 
-          CD build
+          cd build
 
           # configure conda
           conda config --set always_yes yes --set changeps1 no --set anaconda_upload no   1>/dev/null
