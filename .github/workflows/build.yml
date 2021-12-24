@@ -220,7 +220,7 @@ jobs:
       shell: bash -l {0}
       run: |
            mkdir -p build/Release/nogui
-           cp -R build/Release/OpenVisus Release/nogui/OpenVisus
+           cp -R build/Release/OpenVisus build/Release/nogui/OpenVisus
            cd build/Release/nogui/OpenVisus
            rm -Rf QT_VERSION rm -Rf QT_VERSION $(find . -iname "*VisusGui*")
 
