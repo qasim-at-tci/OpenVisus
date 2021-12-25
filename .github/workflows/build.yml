@@ -29,12 +29,12 @@ jobs:
           
           # enable emulation
           # https://www.stereolabs.com/docs/docker/building-arm-container-on-x86/
-          apt-get install qemu binfmt-support qemu-user-static
+          sudo apt-get install qemu binfmt-support qemu-user-static
           docker run --rm --privileged multiarch/qemu-user-static --reset -p yes 
           docker run --rm --platform linux/arm64 -t arm64v8/ubuntu uname -m
 
           #remove -it
-          docker run --rm -it --platform linux/arm64 -v $PWD:/home/OpenVisus -w /home/OpenVisus/ -e PYTHON_VERSION=${{ matrix.python-version }} nsdf/manylinux2014_aarch64:latest bash -c "
+          docker run --rm --platform linux/arm64 -v $PWD:/home/OpenVisus -w /home/OpenVisus/ -e PYTHON_VERSION=${{ matrix.python-version }} nsdf/manylinux2014_aarch64:latest bash -c "
             set -e 
             set -x
 
