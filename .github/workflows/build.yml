@@ -31,7 +31,7 @@ jobs:
           PYTHON_VERSION=${{ matrix.python-version }}
           GIT_TAG=`git describe --tags --exact-match 2>/dev/null || true`
 
-          docker run --rm -it --platform linux/arm64 -v .:/home/OpenVisus -w /home/OpenVisus/ nsdf/${PLATFORM_NAME}:latest bash -c "
+          docker run --rm --platform linux/arm64 -v .:/home/OpenVisus -w /home/OpenVisus/ nsdf/${PLATFORM_NAME}:latest bash -c "
             set -e 
             set -x
 
@@ -77,10 +77,12 @@ jobs:
           {os: 'ubuntu-latest' , wheel-platform-name: 'manylinux2010_x86_64'}]
     steps:
     
-      # ////////////////////////////////////////////////////////////
+    # ____________________________________________
     
     - name: git clone OpenVisus
       uses: actions/checkout@v2
+
+    # ____________________________________________
 
     - name: Install CPython 
       uses: actions/setup-python@v2
@@ -146,7 +148,7 @@ jobs:
 
     # ____________________________________________ WINDOWS
 
-    - name: Compile OpenVisus (windows)
+    - name: Compile (windows)
       if:  matrix.specs.os=='windows-latest'
       shell: bash
       run: |
@@ -167,7 +169,7 @@ jobs:
     # ____________________________________________ macos
 
 
-    - name: Compile OpenVisus (macos)
+    - name: Compile (macos)
       if:  matrix.specs.os=='macos-latest'
       shell: bash
       run: |
@@ -187,7 +189,7 @@ jobs:
 
     # ____________________________________________ ubuntu
 
-    - name: Compile OpenVisus (ubuntu)
+    - name: Compile (ubuntu)
       if:  matrix.specs.os=='ubuntu-latest'
       shell: bash
       run: |
@@ -196,17 +198,20 @@ jobs:
         mkdir build 
         docker run --rm --platform linux/amd64  -v $PWD:/home/OpenVisus -w /home/OpenVisus visus/portable-linux-binaries_x86_64:2.0 \
           bash -c "cd build && \
-                   cmake -DPython_EXECUTABLE=/usr/local/bin/python${{ matrix.python-version }} -DQt5_DIR=/opt/qt512 -DVISUS_GUI=1 -DVISUS_SLAM=1 -DVISUS_MODVISUS=1 ../ && \
-                   make -j && \
-                   make install
-                  "
+            cmake -DPython_EXECUTABLE=/usr/local/bin/python${{ matrix.python-version }} -DQt5_DIR=/opt/qt512 -DVISUS_GUI=1 -DVISUS_SLAM=1 -DVISUS_MODVISUS=1 ../ && \
+            make -j && \
+            make install && \
+            export PYTHONPATH=./Release && \
+            /usr/local/bin/python${{ matrix.python-version }} -m OpenVisus configure # this is needed to fix rpaths before exiting from docker
+            "
         sudo chown -R root:root  build
         sudo chmod -R a+rwx      build
         
     # ____________________________________________ 
-    - name: Test OpenVisus 
+    - name: Test  
       shell: bash -l {0}
       run: |
+           set -e
            set -x
            which python
            cd build/Release/OpenVisus
@@ -216,11 +221,13 @@ jobs:
            ${pythonLocation}/python  -m OpenVisus test-gui 
 
     # ____________________________________________ 
-    - name: Create a non-gui version
+    - name: Create non-gui 
       shell: bash -l {0}
       run: |
+           set -e
+           set -x      
            mkdir -p build/Release/nogui
-           cp -R build/Release/OpenVisus Release/nogui/OpenVisus
+           cp -R build/Release/OpenVisus build/Release/nogui/OpenVisus
            cd build/Release/nogui/OpenVisus
            rm -Rf QT_VERSION rm -Rf QT_VERSION $(find . -iname "*VisusGui*")
 
@@ -285,8 +292,6 @@ jobs:
         set -x 
         conda config --set always_yes yes --set changeps1 no --set anaconda_upload no   1>/dev/null
         conda install conda                                                             1>/dev/null
-        
-
     # ____________________________________________  
     - name: Upload conda
       shell: bash -l {0}
