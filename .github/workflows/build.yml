@@ -4,72 +4,7 @@ jobs:
 
 
 
-  build-arm64:  
-    runs-on: 'ubuntu-latest'
-    strategy:
-      fail-fast: false  
-      matrix:
-        python-version: [ '3.8'] 
-    steps:
-      - name: git clone OpenVisus
-        uses: actions/checkout@v2
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v1
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v1
-        with:
-          install: true
-
-      - name: Build (arm64)
-        run: |
-          set -e
-          set -x
-          
-          # enable emulation
-          # https://www.stereolabs.com/docs/docker/building-arm-container-on-x86/
-          sudo apt-get install qemu binfmt-support qemu-user-static
-          docker run --rm --privileged multiarch/qemu-user-static --reset -p yes 
-          docker run --rm --platform linux/arm64 -t arm64v8/ubuntu uname -m
-
-          #remove -it
-          docker run --rm --platform linux/arm64 -v $PWD:/home/OpenVisus -w /home/OpenVisus/ -e PYTHON_VERSION=${{ matrix.python-version }} nsdf/manylinux2014_aarch64:latest bash -c "
-            set -e 
-            set -x
-
-            uname -m
-            alias python3=/usr/local/bin/python${PYTHON_VERSION}
-
-            mkdir -p build_arm64
-            cd build_arm64
-            cmake -DPython_EXECUTABLE=/usr/local/bin/python${PYTHON_VERSION} -DVISUS_GUI=0 -DVISUS_SLAM=0 -DVISUS_MODVISUS=0 ../ 
-            make -j
-            make install
-
-            export PYTHONPATH=./Release
-            python3 -m OpenVisus configure || true  # segmentation fault problem on linux
-            python3 -m OpenVisus test
-            python3 -m OpenVisus test-gui 
-            unset PYTHONPATH
-
-            function CreateWheelAndUpload() {
-              rm -Rf ./dist
-              python3 -m pip install setuptools wheel twine 1>/dev/null 
-              python3 setup.py -q bdist_wheel --python-tag=cp${PYTHON_VERSION:0:1}${PYTHON_VERSION:2:1} --plat-name=manylinux2014_aarch64
-              GIT_TAG=`git describe --tags --exact-match 2>/dev/null || true`
-              if [[ '${GIT_TAG}' != '' ]] ; then
-                python3 -m twine upload --username ${{ secrets.PYPI_USERNAME }} --password ${{ secrets.PYPI_PASSWORD }}  --skip-existing  'dist/*.whl'
-              fi
-            }
-
-            pushd ./Release/OpenVisus
-            CreateWheelAndUpload
-            popd
-          "
-
-
-  build-amd64:
+  build-job:
     runs-on: ${{ matrix.specs.os }} 
     strategy:
       fail-fast: false  
@@ -149,6 +84,14 @@ jobs:
         install-deps: 'true'  
         dir: /tmp
         setup-python: 'false' 
+        
+
+    - name: Install glu (ubuntu)
+      if: matrix.os == 'ubuntu-latest'
+      shell: bash -l {0}
+      run: |
+        sudo apt-get update 
+        sudo apt-get install libglu1-mesa-dev 1>/dev/null
 
     # ____________________________________________ WINDOWS
 
@@ -205,14 +148,11 @@ jobs:
             cmake -DPython_EXECUTABLE=/usr/local/bin/python${{ matrix.python-version }} -DQt5_DIR=/opt/qt512 -DVISUS_GUI=1 -DVISUS_SLAM=1 -DVISUS_MODVISUS=1 ../ && \
             make -j && \
             make install && \
-            export PYTHONPATH=./Release && \
+            export PYTHONPATH=$PWD/Release && \
             /usr/local/bin/python${{ matrix.python-version }} -m OpenVisus configure || true # this is needed to fix rpaths before exiting from docker
             "
         sudo chown -R root:root  build
         sudo chmod -R a+rwx      build
-        
-        # this is needed for gui
-        sudo apt-get install -y libglu
         
     # ____________________________________________ 
     - name: Test  
@@ -222,7 +162,7 @@ jobs:
            set -x
            which python
            cd build/Release/OpenVisus
-           export PYTHONPATH=../
+           export PYTHONPATH=$PWD/../
            ${pythonLocation}/python  -m OpenVisus configure  || true  # segmentation fault problem on linux
            ${pythonLocation}/python  -m OpenVisus test
            ${pythonLocation}/python  -m OpenVisus test-gui 
@@ -298,7 +238,7 @@ jobs:
         set -e 
         set -x 
         conda config --set always_yes yes --set changeps1 no --set anaconda_upload no   1>/dev/null
-        conda install conda                                                             1>/dev/null
+        conda install -y numpy conda anaconda-client conda-build wheel setuptools       1>/dev/null
     # ____________________________________________  
     - name: Upload conda
       shell: bash -l {0}
@@ -306,20 +246,18 @@ jobs:
           set -e 
           set -x 
           
-          which python
-          
-          conda install --yes anaconda-client  1>/dev/null  || true
-          conda install --yes conda-build      1>/dev/null  || true
-          conda install --yes wheel            1>/dev/null  || true          
+          GIT_TAG=$(git describe --tags --exact-match 2>/dev/null || true)
           
           function BuildCondaAndUpload() {
             rm -Rf $(find ${CONDA_PREFIX} -iname "openvisus*.tar.bz2")  || true
-            # fix problem of bdist_conda command not found
-            #cp -n \
-            # ${CONDA_PREFIX}/lib/python${{ matrix.python-version }}/distutils/command/bdist_conda* \
-            #  ${CONDA_PREFIX}/lib/python${{ matrix.python-version }}/site-packages/setuptools/_distutils/command/
-            python setup.py -q bdist_conda 1>/dev/null
-            GIT_TAG=$(git describe --tags --exact-match 2>/dev/null || true)
+            
+            # fix problem of bdist_conda command not found (I TRIED EVERYTHING! just crazy)
+            pushd ${CONDA_PREFIX}/lib/python${{ matrix.python-version }}
+            cp -n distutils/command/bdist_conda* site-packages/setuptools/_distutils/command/
+            popd
+
+            python -v setup.py -q bdist_conda 
+            
             if [[ "${GIT_TAG}" != ""  ]] ; then
              export PATH=$HOME/anaconda3/bin:$PATH
              anaconda --verbose --show-traceback  -t ${{ secrets.ANACONDA_TOKEN }} upload `find ${CONDA_PREFIX} -iname "openvisus*.tar.bz2"  | head -n 1`
