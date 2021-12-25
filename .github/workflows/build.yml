@@ -26,12 +26,15 @@ jobs:
         run: |
           set -e
           set -x
+          
+          # enable emulation
+          # https://www.stereolabs.com/docs/docker/building-arm-container-on-x86/
+          apt-get install qemu binfmt-support qemu-user-static
+          docker run --rm --privileged multiarch/qemu-user-static --reset -p yes 
+          docker run --rm --platform linux/arm64 -t arm64v8/ubuntu uname -m
 
-          PLATFORM_NAME=manylinux2014_aarch64
-          PYTHON_VERSION=${{ matrix.python-version }}
-          GIT_TAG=`git describe --tags --exact-match 2>/dev/null || true`
-
-          docker run --rm --platform linux/arm64 -v .:/home/OpenVisus -w /home/OpenVisus/ nsdf/${PLATFORM_NAME}:latest bash -c "
+          #remove -it
+          docker run --rm -it --platform linux/arm64 -v $PWD:/home/OpenVisus -w /home/OpenVisus/ -e PYTHON_VERSION=${{ matrix.python-version }} nsdf/manylinux2014_aarch64:latest bash -c "
             set -e 
             set -x
 
@@ -53,7 +56,8 @@ jobs:
             function CreateWheelAndUpload() {
               rm -Rf ./dist
               python3 -m pip install setuptools wheel twine 1>/dev/null 
-              python3 setup.py -q bdist_wheel --python-tag=cp${PYTHON_VERSION:0:1}${PYTHON_VERSION:2:1} --plat-name=${PLATFORM_NAME}
+              python3 setup.py -q bdist_wheel --python-tag=cp${PYTHON_VERSION:0:1}${PYTHON_VERSION:2:1} --plat-name=manylinux2014_aarch64
+              GIT_TAG=`git describe --tags --exact-match 2>/dev/null || true`
               if [[ '${GIT_TAG}' != '' ]] ; then
                 python3 -m twine upload --username ${{ secrets.PYPI_USERNAME }} --password ${{ secrets.PYPI_PASSWORD }}  --skip-existing  'dist/*.whl'
               fi
@@ -202,7 +206,7 @@ jobs:
             make -j && \
             make install && \
             export PYTHONPATH=./Release && \
-            /usr/local/bin/python${{ matrix.python-version }} -m OpenVisus configure # this is needed to fix rpaths before exiting from docker
+            /usr/local/bin/python${{ matrix.python-version }} -m OpenVisus configure || true # this is needed to fix rpaths before exiting from docker
             "
         sudo chown -R root:root  build
         sudo chmod -R a+rwx      build
@@ -308,9 +312,9 @@ jobs:
           function BuildCondaAndUpload() {
             rm -Rf $(find ${CONDA_PREFIX} -iname "openvisus*.tar.bz2")  || true
             # fix problem of bdist_conda command not found
-            # cp -n \
-            #  ${CONDA_PREFIX}/lib/python${{ matrix.python-version }}/distutils/command/bdist_conda* \
-            #  ${CONDA_PREFIX}/lib/python${{ matrix.python-version }}/site-packages/setuptools/_distutils/command/
+            cp -n \
+              ${CONDA_PREFIX}/lib/python${{ matrix.python-version }}/distutils/command/bdist_conda* \
+              ${CONDA_PREFIX}/lib/python${{ matrix.python-version }}/site-packages/setuptools/_distutils/command/
             python setup.py -q bdist_conda 1>/dev/null
             GIT_TAG=$(git describe --tags --exact-match 2>/dev/null || true)
             if [[ "${GIT_TAG}" != ""  ]] ; then
