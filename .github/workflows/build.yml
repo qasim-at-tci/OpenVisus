@@ -101,15 +101,8 @@ jobs:
       run: |
         set -e
         set -x
-        mkdir -p build 
-        cd build
-        cmake -G "Visual Studio 16 2019" -A "x64" \
-         -DVISUS_GUI=1 \
-         -DVISUS_SLAM=1 \
-         -DQt5_DIR="${Qt5_Dir}/lib/cmake/Qt5" \
-         -DPython_EXECUTABLE=${pythonLocation}/python.exe  \
-         -DSWIG_EXECUTABLE=../swigwin-4.0.2/swig.exe \
-         ../
+        mkdir -p build && cd build
+        cmake -G "Visual Studio 16 2019" -A "x64" -DVISUS_GUI=1 -DVISUS_SLAM=1 -DQt5_DIR="${Qt5_Dir}/lib/cmake/Qt5" -DPython_EXECUTABLE=${pythonLocation}/python.exe -DSWIG_EXECUTABLE=../swigwin-4.0.2/swig.exe ../
         cmake --build . --target ALL_BUILD --config Release --parallel 4
         cmake --build . --target install   --config Release
 
@@ -122,15 +115,8 @@ jobs:
       run: |
         set -e
         set -x
-        mkdir -p build 
-        cd build
-        cmake -GXcode  \
-         -DVISUS_GUI=1 \
-         -DVISUS_SLAM=1 \
-         -DQt5_DIR="${Qt5_Dir}/lib/cmake/Qt5" \
-         -DCMAKE_OSX_SYSROOT="/tmp/MacOSX-SDKs/MacOSX10.9.sdk" \
-         -DPython_EXECUTABLE=${pythonLocation}/python  \
-         ../
+        mkdir -p build && cd build
+        cmake -GXcode -DVISUS_GUI=1 -DVISUS_SLAM=1 -DQt5_DIR="${Qt5_Dir}/lib/cmake/Qt5" -DCMAKE_OSX_SYSROOT="/tmp/MacOSX-SDKs/MacOSX10.9.sdk"-DPython_EXECUTABLE=${pythonLocation}/python ../
         cmake --build ./ --target ALL_BUILD --config Release --parallel 4 
         cmake --build ./ --target install   --config Release 
 
@@ -142,17 +128,10 @@ jobs:
       run: |
         set -e
         set -x
-        mkdir build 
-        docker run --rm --platform linux/amd64  -v $PWD:/home/OpenVisus -w /home/OpenVisus visus/portable-linux-binaries_x86_64:2.0 \
-          bash -c "cd build && \
-            cmake -DPython_EXECUTABLE=/usr/local/bin/python${{ matrix.python-version }} -DQt5_DIR=/opt/qt512 -DVISUS_GUI=1 -DVISUS_SLAM=1 -DVISUS_MODVISUS=1 ../ && \
-            make -j && \
-            make install && \
-            export PYTHONPATH=$PWD/Release && \
-            /usr/local/bin/python${{ matrix.python-version }} -m OpenVisus configure || true # this is needed to fix rpaths before exiting from docker
-            "
-        sudo chown -R root:root  build
-        sudo chmod -R a+rwx      build
+        PYTHON_VERSION=${{ matrix.python-version }}
+        docker run --rm -v $PWD:/home/OpenVisus -w /home/OpenVisus -e PYTHON_VERSION=${PYTHON_VERSION} visus/portable-linux-binaries_x86_64:2.0 bash scripts/build_ubuntu.sh
+        sudo chown -R root:root  build_ubuntu
+        sudo chmod -R a+rwx      build_ubuntu
         
     # ____________________________________________ 
     - name: Test  
@@ -160,12 +139,10 @@ jobs:
       run: |
            set -e
            set -x
-           which python
-           cd build/Release/OpenVisus
-           export PYTHONPATH=$PWD/../
-           ${pythonLocation}/python  -m OpenVisus configure  || true  # segmentation fault problem on linux
-           ${pythonLocation}/python  -m OpenVisus test
-           ${pythonLocation}/python  -m OpenVisus test-gui 
+           export PYTHONPATH=$PWD/build/Release
+           ${pythonLocation}/python -m OpenVisus configure  || true  # segmentation fault problem on linux
+           ${pythonLocation}/python -m OpenVisus test
+           ${pythonLocation}/python -m OpenVisus test-gui 
 
     # ____________________________________________ 
     - name: Create non-gui 
@@ -175,8 +152,9 @@ jobs:
            set -x      
            mkdir -p build/Release/nogui
            cp -R build/Release/OpenVisus build/Release/nogui/OpenVisus
-           cd build/Release/nogui/OpenVisus
-           rm -Rf QT_VERSION rm -Rf QT_VERSION $(find . -iname "*VisusGui*")
+           pushd build/Release/nogui/OpenVisus
+           rm -Rf QT_VERSION $(find . -iname "*VisusGui*")
+           popd
 
     # ____________________________________________ 
 
@@ -191,6 +169,8 @@ jobs:
           ${pythonLocation}/python -m pip install setuptools wheel twine 1>/dev/null 
           PYTHON_VERSION=${{ matrix.python-version }}
           ${pythonLocation}/python setup.py -q bdist_wheel --python-tag=cp${PYTHON_VERSION:0:1}${PYTHON_VERSION:2:1} --plat-name=${{ matrix.specs.wheel-platform-name }}
+          
+          GIT_TAG=$(git describe --tags --exact-match 2>/dev/null || true)
           if [[ "${GIT_TAG}" != "" ]] ; then
             ${pythonLocation}/python -m twine upload --username ${{ secrets.PYPI_USERNAME }} --password ${{ secrets.PYPI_PASSWORD }}  --skip-existing  "dist/*.whl"
           fi

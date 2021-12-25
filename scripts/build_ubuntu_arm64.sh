@@ -1,10 +1,11 @@
 #!/bin/bash
 
- <<'END_COMMENT'
-To run:
+# to run:
+# PYTHON_VERSION=3.8
+# PYPI_PASSWORD=XXXX
+# ANACONDA_TOKEN=YYYY
+# sudo docker run --rm --platform linux/arm64 -v $PWD:/home/OpenVisus -w /home/OpenVisus -e PYTHON_VERSION=$PYTHON_VERSION -e PYPI_PASSWORD=$PYPI_PASSWORD -e ANACONDA_TOKEN=$ANACONDA_TOKEN  nsdf/manylinux2014_aarch64:latest bash scripts/build_ubuntu_arm64.sh
 
-
-END_COMMENT
 
 set -e
 set -x
@@ -13,13 +14,16 @@ PYTHON_VERSION=${PYTHON_VERSION:-3.8}
 PYPI_USERNAME=${PYPI_USERNAME:-}
 PYPI_PASSWORD=${PYPI_PASSWORD:-scrgiorgio}
 ANACONDA_TOKEN=${ANACONDA_TOKEN:-}
+BUILD_DIR=${BUILD_DIR:-build_arm64}
+
+# since I am manually producing the binaries, I should use the last git tag
 GIT_TAG=$(python3 ../Libs/swig/setup.py print-tag)
 
 uname -m
 alias python3=/usr/local/bin/python${PYTHON_VERSION}
 
-mkdir -p build
-cd build
+mkdir -p $BUILD_DIR
+cd $BUILD_DIR
 cmake -DPython_EXECUTABLE=/usr/local/bin/python${PYTHON_VERSION} -DVISUS_GUI=0 -DVISUS_SLAM=0 -DVISUS_MODVISUS=0 ../ 
 make -j
 make install
@@ -81,4 +85,7 @@ if [[ "${GIT_TAG}" != ""  && '${ANACONDA_TOKEN}' != ''  ]] ; then
 fi
 popd
 
-conda deactivate
+# finish
+if [[ '1' ==  '1']] ; then
+  conda deactivate
+fi
