@@ -312,9 +312,9 @@ jobs:
           function BuildCondaAndUpload() {
             rm -Rf $(find ${CONDA_PREFIX} -iname "openvisus*.tar.bz2")  || true
             # fix problem of bdist_conda command not found
-            cp -n \
-              ${CONDA_PREFIX}/lib/python${{ matrix.python-version }}/distutils/command/bdist_conda* \
-              ${CONDA_PREFIX}/lib/python${{ matrix.python-version }}/site-packages/setuptools/_distutils/command/
+            #cp -n \
+            # ${CONDA_PREFIX}/lib/python${{ matrix.python-version }}/distutils/command/bdist_conda* \
+            #  ${CONDA_PREFIX}/lib/python${{ matrix.python-version }}/site-packages/setuptools/_distutils/command/
             python setup.py -q bdist_conda 1>/dev/null
             GIT_TAG=$(git describe --tags --exact-match 2>/dev/null || true)
             if [[ "${GIT_TAG}" != ""  ]] ; then
