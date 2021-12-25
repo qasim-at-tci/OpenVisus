@@ -3,7 +3,7 @@
 set -e
 set -x
 
-BUILD_DIR=${BUILD_DIR:-build_ubuntu}
+BUILD_DIR=${BUILD_DIR:-build}
 PYTHON_VERSION=${PYTHON_VERSION:-3.8}
 Qt5_DIR=${Qt5_DIR:-/opt/qt512}
 VISUS_GUI=${VISUS_GUI:-1}
