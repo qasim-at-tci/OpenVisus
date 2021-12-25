@@ -220,7 +220,7 @@ jobs:
       shell: bash -l {0}
       run: |
            mkdir -p build/Release/nogui
-           cp -R build/Release/OpenVisus build/Release/nogui/OpenVisus
+           cp -R build/Release/OpenVisus Release/nogui/OpenVisus
            cd build/Release/nogui/OpenVisus
            rm -Rf QT_VERSION rm -Rf QT_VERSION $(find . -iname "*VisusGui*")
 
@@ -281,13 +281,10 @@ jobs:
     - name: Configure conda
       shell: bash -l {0}
       run: |
-          set -e 
-          set -x 
-          conda config --set always_yes yes --set changeps1 no --set anaconda_upload no   1>/dev/null
-          conda install --yes conda            1>/dev/null  || true
-          conda install --yes anaconda-client  1>/dev/null  || true
-          conda install --yes conda-build      1>/dev/null  || true
-          conda install --yes wheel            1>/dev/null  || true          
+        set -e 
+        set -x 
+        conda config --set always_yes yes --set changeps1 no --set anaconda_upload no   1>/dev/null
+        conda install conda                                                             1>/dev/null
         
 
     # ____________________________________________  
@@ -296,13 +293,19 @@ jobs:
       run: |
           set -e 
           set -x 
-
+          
+          which python
+          
+          conda install --yes anaconda-client  1>/dev/null  || true
+          conda install --yes conda-build      1>/dev/null  || true
+          conda install --yes wheel            1>/dev/null  || true          
+          
           function BuildCondaAndUpload() {
             rm -Rf $(find ${CONDA_PREFIX} -iname "openvisus*.tar.bz2")  || true
             # fix problem of bdist_conda command not found
-            #cp -n \
+            # cp -n \
             #  ${CONDA_PREFIX}/lib/python${{ matrix.python-version }}/distutils/command/bdist_conda* \
-            # ${CONDA_PREFIX}/lib/python${{ matrix.python-version }}/site-packages/setuptools/_distutils/command/
+            #  ${CONDA_PREFIX}/lib/python${{ matrix.python-version }}/site-packages/setuptools/_distutils/command/
             python setup.py -q bdist_conda 1>/dev/null
             GIT_TAG=$(git describe --tags --exact-match 2>/dev/null || true)
             if [[ "${GIT_TAG}" != ""  ]] ; then
